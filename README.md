@@ -19,7 +19,7 @@ Designing high-performance silicon nitride photonic waveguides is a complex, ite
 
 * **💥 Massive Parameter Space:** Waveguide geometry, cladding materials, deposition methods, etch processes, and annealing conditions create thousands of possible configurations.
 * **🌀 Slow Design Cycles:** Traditional trial-and-error fabrication is expensive and time-consuming — each iteration takes weeks.
-* **⚠️ Hidden Interactions:** Fabrication parameters interact in non-obvious ways — sidewall roughness, cladding choice, and annealing all affect loss in coupled ways.
+* **⚠️ Hidden Interactions:** Fabrication parameters interact in non-obvious ways, sidewall roughness, cladding choice, and annealing all affect loss in coupled ways.
 * **🔥 Batch Variability:** Real fabrication runs show batch-to-batch variation that is difficult to predict or control without data-driven insights.
 * **🧪 Fine-Tuning Limitations:** Fine-tuning a foundation model on waveguide data produces black-box predictions that cannot be mathematically verified, cannot perform true gradient-based inverse design, and cannot generate fabrication-ready outputs.
 
@@ -142,7 +142,7 @@ pytest tests/
 
 ## 🏛️ Architecture
 
-The application uses a **physics-first MCP architecture** where deterministic Python solvers replace foundation model fine-tuning:
+The application uses a **physics first MCP architecture** where deterministic Python solvers replace foundation model fine-tuning:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -198,7 +198,7 @@ When the prediction agent suggests a waveguide configuration (e.g., a 1.5µm wid
 
 ### Tool 2: `optimize_waveguide` (SAX + JAX)
 
-For rigorous, physics-grounded inverse design to minimize insertion loss or hit a specific coupling efficiency, SAX is a photonic circuit solver built natively on Google's JAX. Because it supports **automatic differentiation**, the MCP server uses it to run **gradient-descent optimization** on waveguide parameters in real-time. Instead of just querying the 90K dataset for the closest match, the agent uses SAX to mathematically "slide" down the gradient to find the absolute optimal structural geometry for a user's constraints.
+For rigorous, physics grounded inverse design to minimize insertion loss or hit a specific coupling efficiency, SAX is a photonic circuit solver built natively on Google's JAX. Because it supports **automatic differentiation**, the MCP server uses it to run **gradient descent optimization** on waveguide parameters in real-time. Instead of just querying the 90K dataset for the closest match, the agent uses SAX to mathematically "slide" down the gradient to find the absolute optimal structural geometry for a user's constraints.
 
 ### Tool 3: `generate_mask` (gdsfactory)
 
@@ -515,4 +515,4 @@ Contributions of all kinds are welcome:
 
 ## 📄 License
 
-MIT © A Taylor
+MIT © A Taylor 2026
