@@ -502,7 +502,7 @@ Contributions of all kinds are welcome:
 * **🔮 Prediction Models:** Improve ML accuracy with new architectures.
 * **📖 Documentation:** Improve developer experience.
 * **🧪 Tests:** Increase test coverage.
-* **📡 Real-World Datasets:** Measured fabrication and characterization data from real devices are especially welcome — they help validate and improve both the physics tools and prediction models.
+* **📡 Real-World Datasets:** Measured fabrication and characterization data from real devices are especially welcome asthey help validate and improve both the physics tools and prediction models.
 
 ---
 
