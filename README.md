@@ -5,6 +5,7 @@
 [![AWS](https://img.shields.io/badge/AWS-Bedrock%20AgentCore-orange.svg)](https://aws.amazon.com/bedrock/)
 [![Dataset](https://img.shields.io/badge/HuggingFace-90K%20rows-yellow.svg)](https://huggingface.co/datasets/Taylor658/SiN-photonic-waveguide-loss-efficiency)
 [![MCP](https://img.shields.io/badge/MCP-FastMCP%20Server-green.svg)](https://github.com/jlowin/fastmcp)
+[![Contact A Taylor](https://img.shields.io/badge/Contact-A%20Taylor-brightgreen.svg?logo=mail.ru&logoColor=white)](https://ataylor.getform.com/5w8wz)
 
 An **Agentic AI Application** for analyzing, predicting, and optimizing Silicon Nitride (Si₃N₄) photonic waveguide performance. Powered by **deterministic physics tools** served via a **FastMCP server** — using **modesolverpy**, **SAX (JAX)**, and **gdsfactory** — orchestrated by **AWS Bedrock Agents**, **Strands Agents SDK**, and **Amazon Bedrock AgentCore** for production-grade agentic infrastructure.
 
