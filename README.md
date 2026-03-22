@@ -1,7 +1,7 @@
 # 🔬 SiN Photonic Waveguide MCP Agent 🚀
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/)
-[![Stars](https://img.shields.io/github/stars/ATaylorAerospace/Photonic-Waveguide-MCP?style=social)](https://github.com/ATaylorAerospace/Photonic-Waveguide-MCP)
+[![Stars](https://img.shields.io/github/stars/ATaylorAerospace/Photonic-Waveguide?style=social)](https://github.com/ATaylorAerospace/Photonic-Waveguide)
 [![AWS](https://img.shields.io/badge/AWS-Bedrock%20AgentCore-orange.svg)](https://aws.amazon.com/bedrock/)
 [![Dataset](https://img.shields.io/badge/HuggingFace-90K%20rows-yellow.svg)](https://huggingface.co/datasets/Taylor658/SiN-photonic-waveguide-loss-efficiency)
 [![MCP](https://img.shields.io/badge/MCP-FastMCP%20Server-green.svg)](https://github.com/jlowin/fastmcp)
