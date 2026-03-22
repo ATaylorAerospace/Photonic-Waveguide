@@ -1,0 +1,44 @@
+# Agent framework
+strands-agents>=0.3.0
+strands-agents-tools>=0.2.0
+bedrock-agentcore>=0.1.0
+
+# AWS SDK
+boto3>=1.35.0
+botocore>=1.35.0
+
+# Data and ML
+pandas>=2.2.0
+numpy>=1.26.0
+scikit-learn>=1.5.0
+xgboost>=2.1.0
+datasets>=3.0.0
+
+# MCP Server
+fastmcp>=2.0.0
+
+# Physics backends
+modesolverpy>=0.5.0
+sax>=0.14.0
+jax>=0.4.30
+jaxlib>=0.4.30
+gdsfactory>=8.0.0
+gdstk>=0.9.0
+
+# Storage (Hybrid Architecture)
+boto3>=1.35.0
+pyarrow>=17.0.0
+s3fs>=2024.6.0
+
+# Observability
+aws-opentelemetry-distro>=0.10.1
+opentelemetry-api>=1.20.0
+opentelemetry-sdk>=1.20.0
+
+# Utilities
+joblib>=1.4.0
+pydantic>=2.0.0
+
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=0.24.0

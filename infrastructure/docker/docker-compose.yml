@@ -1,0 +1,35 @@
+version: "3.8"
+services:
+  mcp-server:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile
+    command: python -m mcp_server.server
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../../output:/app/output
+      - ../../data:/app/data
+    environment:
+      - MCP_SERVER_HOST=0.0.0.0
+      - MCP_SERVER_PORT=8000
+      - AWS_REGION=${AWS_REGION:-us-west-2}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME:-photonic-waveguide-data--usw2-az1--x-s3}
+      - S3_DATASET_KEY=${S3_DATASET_KEY:-dataset.parquet}
+      - DYNAMODB_TABLE_NAME=${DYNAMODB_TABLE_NAME:-photonic-simulation-cache}
+      - S3_TABLES_DATABASE=${S3_TABLES_DATABASE:-photonic_waveguide_db}
+      - S3_TABLES_TABLE=${S3_TABLES_TABLE:-waveguide_measurements}
+
+  agent:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile
+    command: python src/agents/photonic_agent.py
+    depends_on:
+      - mcp-server
+    environment:
+      - MCP_SERVER_URL=http://mcp-server:8000/mcp
+      - AWS_REGION=${AWS_REGION:-us-west-2}
+      - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-anthropic.claude-sonnet-4-20250514}
+    stdin_open: true
+    tty: true

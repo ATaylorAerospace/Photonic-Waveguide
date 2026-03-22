@@ -1,0 +1,17 @@
+[
+  {
+    "input": "What is the effective refractive index for a 1.5um wide, 400nm tall SiN waveguide at 1550nm TE?",
+    "expected_tool": "solve_waveguide_mode",
+    "expected_fields": ["n_eff", "confinement_factor"]
+  },
+  {
+    "input": "Optimize my waveguide for propagation loss below 0.3 dB/cm at 1550nm TE",
+    "expected_tool": "optimize_waveguide",
+    "expected_fields": ["optimized_width_um", "optimized_height_nm"]
+  },
+  {
+    "input": "Generate a GDSII mask for a 1.2um wide, 350nm tall waveguide, 10mm long",
+    "expected_tool": "generate_mask",
+    "expected_fields": ["gds_file_path"]
+  }
+]

@@ -1,0 +1,7 @@
+evaluation:
+  name: "photonic-waveguide-mcp-eval"
+  scenarios_file: "eval_scenarios.json"
+  metrics:
+    - accuracy
+    - latency
+    - tool_selection_correctness

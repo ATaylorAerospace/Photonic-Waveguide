@@ -1,0 +1,206 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Hybrid Storage Architecture for the Photonic Waveguide MCP Server.
+  Layer 1: S3 Express One Zone (Parquet bulk data)
+  Layer 2: DynamoDB (simulation cache)
+  Layer 3: S3 Tables (SQL over Parquet)
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: "dev"
+    AllowedValues: ["dev", "staging", "prod"]
+  CacheTTLDays:
+    Type: Number
+    Default: 30
+    Description: DynamoDB cache TTL in days
+
+Resources:
+  # =========================================================
+  # Layer 1: S3 Express One Zone — Bulk Parquet Dataset
+  # =========================================================
+  # NOTE: S3 Express One Zone directory buckets must be created
+  # via the AWS CLI or SDK (not CloudFormation as of 2026-Q1).
+  # Use this command after stack creation:
+  #
+  #   aws s3api create-bucket \
+  #     --bucket photonic-waveguide-data--usw2-az1--x-s3 \
+  #     --region us-west-2 \
+  #     --create-bucket-configuration \
+  #       Location={Type=AvailabilityZone,Name=usw2-az1},
+  #       Bucket={DataRedundancy=SingleAvailabilityZone,Type=Directory}
+  #
+  # Then upload the Parquet file:
+  #   aws s3 cp data/parquet_cache/dataset.parquet \
+  #     s3://photonic-waveguide-data--usw2-az1--x-s3/dataset.parquet
+
+  DatasetBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "photonic-waveguide-data-${EnvironmentName}"
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: TransitionToIA
+            Status: Enabled
+            Transitions:
+              - StorageClass: STANDARD_IA
+                TransitionInDays: 90
+      Tags:
+        - Key: Project
+          Value: Photonic-Waveguide-MCP
+        - Key: Environment
+          Value: !Ref EnvironmentName
+
+  # =========================================================
+  # Layer 2: DynamoDB — Simulation Cache
+  # =========================================================
+  SimulationCacheTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "photonic-simulation-cache-${EnvironmentName}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: geometry_hash
+          AttributeType: S
+        - AttributeName: sort_key
+          AttributeType: S
+      KeySchema:
+        - AttributeName: geometry_hash
+          KeyType: HASH
+        - AttributeName: sort_key
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Project
+          Value: Photonic-Waveguide-MCP
+        - Key: Environment
+          Value: !Ref EnvironmentName
+
+  # =========================================================
+  # Layer 3: S3 Tables — SQL over Parquet
+  # =========================================================
+  GlueDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: !Sub "photonic_waveguide_db_${EnvironmentName}"
+        Description: "S3 Tables database for waveguide dataset SQL queries"
+
+  GlueTable:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref GlueDatabase
+      TableInput:
+        Name: waveguide_measurements
+        Description: "90K SiN photonic waveguide loss & efficiency measurements"
+        TableType: EXTERNAL_TABLE
+        Parameters:
+          classification: parquet
+          compressionType: snappy
+        StorageDescriptor:
+          Location: !Sub "s3://${DatasetBucket}/dataset/"
+          InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+          SerdeInfo:
+            SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+          Columns:
+            - Name: width_um
+              Type: double
+            - Name: height_nm
+              Type: double
+            - Name: wavelength_nm
+              Type: double
+            - Name: polarization
+              Type: string
+            - Name: propagation_loss_dB_cm
+              Type: double
+            - Name: insertion_loss_dB
+              Type: double
+            - Name: coupling_efficiency
+              Type: double
+            - Name: deposition_method
+              Type: string
+            - Name: etch_method
+              Type: string
+            - Name: cladding_material
+              Type: string
+            - Name: anneal_temp_C
+              Type: double
+            - Name: anneal_hours
+              Type: double
+
+  # =========================================================
+  # IAM Role for MCP Server to access storage
+  # =========================================================
+  MCPServerStorageRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "photonic-mcp-storage-${EnvironmentName}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+                - lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: S3DatasetAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                  - s3express:GetObject
+                  - s3express:ListBucket
+                Resource:
+                  - !Sub "arn:aws:s3:::${DatasetBucket}"
+                  - !Sub "arn:aws:s3:::${DatasetBucket}/*"
+                  - "arn:aws:s3express:us-west-2:*:bucket/photonic-waveguide-data--usw2-az1--x-s3"
+                  - "arn:aws:s3express:us-west-2:*:bucket/photonic-waveguide-data--usw2-az1--x-s3/*"
+        - PolicyName: DynamoCacheAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt SimulationCacheTable.Arn
+        - PolicyName: GlueTableAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - glue:GetTable
+                  - glue:GetDatabase
+                Resource: "*"
+
+Outputs:
+  DatasetBucketName:
+    Value: !Ref DatasetBucket
+    Description: S3 bucket for dataset storage
+  SimulationCacheTableName:
+    Value: !Ref SimulationCacheTable
+    Description: DynamoDB table for simulation cache
+  GlueDatabaseName:
+    Value: !Ref GlueDatabase
+    Description: Glue database for S3 Tables queries
+  MCPServerRoleArn:
+    Value: !GetAtt MCPServerStorageRole.Arn
+    Description: IAM role ARN for MCP server storage access
