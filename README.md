@@ -1,3 +1,5 @@
+![photonicwaveguide](docs/silnitride.png)
+
 # 🔬 SiN Photonic Waveguide MCP Agent 🚀
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/)
