@@ -1,7 +1,7 @@
 """Coordinator agent for the SiN Photonic Waveguide MCP system."""
-import os
 from strands import Agent
 from strands.models import BedrockModel
+from src.config.aws_config import AWS_REGION, BEDROCK_MODEL_ID
 from src.agents.system_prompts import COORDINATOR_PROMPT
 from src.tools.physics_tools import solve_mode
 from src.tools.optimization_tools import optimize_design
@@ -14,8 +14,8 @@ from src.tools.visualization_tools import plot_chart
 def create_coordinator_agent() -> Agent:
     """Create and configure the coordinator agent with all tools."""
     model = BedrockModel(
-        model_id=os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-sonnet-4-20250514"),
-        region_name=os.getenv("AWS_REGION", "us-west-2"),
+        model_id=BEDROCK_MODEL_ID,
+        region_name=AWS_REGION,
     )
     agent = Agent(
         model=model,

@@ -52,14 +52,22 @@ class WaveguideSolver:
 
         n_eff = float(np.real(solver.n_effs[0]))
 
-        mode_field = solver.fields["Ex" if params.polarization == "TE" else "Ey"][0]
+        mode_field = solver.modes[0].fields["Ex" if params.polarization == "TE" else "Ey"]
         intensity = np.abs(mode_field) ** 2
         total_power = np.sum(intensity)
 
+        # The structure grid starts at 0 and is not centered: the core sits
+        # horizontally at the middle of sub_width and vertically on top of the
+        # substrate slab of thickness DEFAULT_BOUNDARY_UM.
         x_pts = structure.x
         y_pts = structure.y
-        core_x_mask = np.abs(x_pts) <= params.width_um / 2
-        core_y_mask = (y_pts >= 0) & (y_pts <= height_um)
+        # The masking below assumes intensity is indexed [y, x]; EMpy-backed
+        # fields may come back [x, y], so transpose if the shape says so.
+        if intensity.shape == (x_pts.size, y_pts.size) and x_pts.size != y_pts.size:
+            intensity = intensity.T
+        x_center = (x_pts.min() + x_pts.max()) / 2
+        core_x_mask = np.abs(x_pts - x_center) <= params.width_um / 2
+        core_y_mask = (y_pts >= DEFAULT_BOUNDARY_UM) & (y_pts <= DEFAULT_BOUNDARY_UM + height_um)
         core_intensity = intensity[np.ix_(core_y_mask, core_x_mask)]
         confinement = float(np.sum(core_intensity) / total_power) if total_power > 0 else 0.0
 

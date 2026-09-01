@@ -13,9 +13,9 @@ async def test_solve_mode_via_mcp():
                 "core_material": "SiN", "cladding_material": "SiO2",
                 "wavelength_nm": 1550, "polarization": "TE",
             })
-            assert "n_eff" in result
-    except ConnectionError:
+    except (OSError, RuntimeError, ConnectionError):
         pytest.skip("MCP server not running")
+    assert "n_eff" in result.data
 
 
 @pytest.mark.asyncio
@@ -27,6 +27,6 @@ async def test_optimize_via_mcp():
             result = await client.call_tool("optimize_waveguide", {
                 "target_metric": "propagation_loss", "target_value": 0.2,
             })
-            assert "optimized_width_um" in result
-    except ConnectionError:
+    except (OSError, RuntimeError, ConnectionError):
         pytest.skip("MCP server not running")
+    assert "optimized_width_um" in result.data

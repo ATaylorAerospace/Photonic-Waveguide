@@ -59,9 +59,10 @@ class MaskGenerator:
         output_path = os.path.join(self.output_dir, params.output_filename)
         c.write_gds(output_path)
 
-        bbox = c.bbox
-        bounding_box = ((float(bbox[0][0]), float(bbox[0][1])),
-                        (float(bbox[1][0]), float(bbox[1][1])))
+        # gdsfactory >= 8 (kfactory-based): bbox is a method returning a DBox.
+        bbox = c.dbbox()
+        bounding_box = ((float(bbox.left), float(bbox.bottom)),
+                        (float(bbox.right), float(bbox.top)))
 
         return MaskGenOutput(
             gds_file_path=output_path,

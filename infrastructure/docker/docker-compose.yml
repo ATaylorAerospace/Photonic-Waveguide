@@ -24,12 +24,12 @@ services:
     build:
       context: ../..
       dockerfile: infrastructure/docker/Dockerfile
-    command: python src/agents/photonic_agent.py
+    command: python -m src.agents.photonic_agent
     depends_on:
       - mcp-server
     environment:
       - MCP_SERVER_URL=http://mcp-server:8000/mcp
       - AWS_REGION=${AWS_REGION:-us-west-2}
-      - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-anthropic.claude-sonnet-4-20250514}
+      - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-us.anthropic.claude-sonnet-4-20250514-v1:0}
     stdin_open: true
     tty: true

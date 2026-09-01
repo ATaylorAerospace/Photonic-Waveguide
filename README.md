@@ -102,13 +102,13 @@ pip install -e ".[mcp,physics]"
 python data/download_dataset.py
 
 # Train fast-pass XGBoost models (optional — for first-pass loss estimates)
-python src/models/train.py
+python -m src.models.train
 
 # Start the MCP physics server
 python -m mcp_server.server
 
 # In a separate terminal — run the agent
-python src/agents/photonic_agent.py
+python -m src.agents.photonic_agent
 ```
 
 ### 🧪 Running Tests
@@ -478,7 +478,7 @@ docker compose -f infrastructure/docker/docker-compose.yml up
 ```bash
 export AWS_REGION=us-west-2
 export AWS_PROFILE=photonic-agent-dev
-export BEDROCK_MODEL_ID=anthropic.claude-sonnet-4-20250514
+export BEDROCK_MODEL_ID=us.anthropic.claude-sonnet-4-20250514-v1:0
 export DATASET_PATH=data/SiN_Photonic_Waveguide_Loss_Efficiency.csv
 export MODEL_ARTIFACTS_PATH=models/
 export MCP_SERVER_URL=http://localhost:8000/mcp

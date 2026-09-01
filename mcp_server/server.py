@@ -7,6 +7,7 @@ results before running expensive physics, and writing results back on cache miss
 Run with: python -m mcp_server.server
 """
 from fastmcp import FastMCP
+from mcp_server.config import MCP_SERVER_HOST, MCP_SERVER_PORT
 from mcp_server.schemas.waveguide import (
     ModeSolverInput,
     InverseDesignInput,
@@ -19,7 +20,7 @@ from mcp_server.storage.cache import SimulationCache
 
 mcp = FastMCP(
     name="photonic-waveguide-mcp-server",
-    description=(
+    instructions=(
         "Deterministic physics tools for SiN photonic waveguide design. "
         "Provides eigenmode solving (modesolverpy), gradient-based inverse "
         "design (SAX + JAX), and GDSII mask generation (gdsfactory). "
@@ -192,4 +193,4 @@ def generate_mask(
 
 
 if __name__ == "__main__":
-    mcp.run()
+    mcp.run(transport="http", host=MCP_SERVER_HOST, port=MCP_SERVER_PORT)
