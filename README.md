@@ -1,7 +1,8 @@
+![photonicwaveguide](docs/silnitride.png)
+
 # 🔬 SiN Photonic Waveguide MCP Agent 🚀
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/)
-[![Stars](https://img.shields.io/github/stars/ATaylorAerospace/Photonic-Waveguide?style=social)](https://github.com/ATaylorAerospace/Photonic-Waveguide)
 [![AWS](https://img.shields.io/badge/AWS-Bedrock%20AgentCore-orange.svg)](https://aws.amazon.com/bedrock/)
 [![Dataset](https://img.shields.io/badge/HuggingFace-90K%20rows-yellow.svg)](https://huggingface.co/datasets/Taylor658/SiN-photonic-waveguide-loss-efficiency)
 [![MCP](https://img.shields.io/badge/MCP-FastMCP%20Server-green.svg)](https://github.com/jlowin/fastmcp)
@@ -101,13 +102,13 @@ pip install -e ".[mcp,physics]"
 python data/download_dataset.py
 
 # Train fast-pass XGBoost models (optional — for first-pass loss estimates)
-python src/models/train.py
+python -m src.models.train
 
 # Start the MCP physics server
 python -m mcp_server.server
 
 # In a separate terminal — run the agent
-python src/agents/photonic_agent.py
+python -m src.agents.photonic_agent
 ```
 
 ### 🧪 Running Tests
@@ -477,7 +478,7 @@ docker compose -f infrastructure/docker/docker-compose.yml up
 ```bash
 export AWS_REGION=us-west-2
 export AWS_PROFILE=photonic-agent-dev
-export BEDROCK_MODEL_ID=anthropic.claude-sonnet-4-20250514
+export BEDROCK_MODEL_ID=us.anthropic.claude-sonnet-4-20250514-v1:0
 export DATASET_PATH=data/SiN_Photonic_Waveguide_Loss_Efficiency.csv
 export MODEL_ARTIFACTS_PATH=models/
 export MCP_SERVER_URL=http://localhost:8000/mcp
@@ -502,6 +503,7 @@ Contributions of all kinds are welcome:
 * **🔮 Prediction Models:** Improve ML accuracy with new architectures.
 * **📖 Documentation:** Improve developer experience.
 * **🧪 Tests:** Increase test coverage.
+* **📡 Real-World Datasets:** Measured fabrication and characterization data from real devices are especially welcome as they help validate and improve both the physics tools and prediction models.
 
 ---
 

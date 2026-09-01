@@ -6,4 +6,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 EXPOSE 8000
-CMD ["sh", "-c", "python -m mcp_server.server & python src/agents/photonic_agent.py"]
+CMD ["sh", "-c", "python -m mcp_server.server & python -m src.agents.photonic_agent"]

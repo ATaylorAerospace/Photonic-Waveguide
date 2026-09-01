@@ -4,6 +4,8 @@ import joblib
 import numpy as np
 from strands import tool
 
+from src.models.features import encode_categorical
+
 MODEL_PATH = os.getenv("MODEL_ARTIFACTS_PATH", "models/")
 
 
@@ -20,12 +22,12 @@ def predict_loss(
     """
     model_file = os.path.join(MODEL_PATH, "xgboost_loss_model.joblib")
     if not os.path.exists(model_file):
-        return {"error": "Model not trained yet. Run: python src/models/train.py"}
+        return {"error": "Model not trained yet. Run: python -m src.models.train"}
     model = joblib.load(model_file)
-    pol_enc = 0 if polarization == "TE" else 1
-    dep_enc = {"LPCVD": 0, "PECVD": 1, "HDPCVD": 2}.get(deposition_method, 0)
-    etch_enc = {"RIE": 0, "ICP-RIE": 1, "Wet": 2}.get(etch_method, 0)
-    clad_enc = {"SiO2": 0, "Air": 1, "SiN": 2}.get(cladding, 0)
+    pol_enc = encode_categorical("polarization", polarization)
+    dep_enc = encode_categorical("deposition_method", deposition_method)
+    etch_enc = encode_categorical("etch_method", etch_method)
+    clad_enc = encode_categorical("cladding_material", cladding)
     features = np.array([[
         width_um, height_nm, wavelength_nm, pol_enc,
         dep_enc, etch_enc, clad_enc, anneal_temp_c, anneal_hours,

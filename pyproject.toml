@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.backends._legacy:_Backend"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "sin-photonic-mcp-agent"
@@ -31,7 +31,7 @@ dependencies = [
 
 [project.optional-dependencies]
 physics = [
-    "modesolverpy>=0.5.0",
+    "modesolverpy>=0.4.0",
     "sax>=0.14.0",
     "jax>=0.4.30",
     "jaxlib>=0.4.30",
@@ -42,13 +42,13 @@ storage = [
     "pyarrow>=17.0.0",
     "s3fs>=2024.6.0",
 ]
-mcp = [
-    "fastmcp>=2.0.0",
-]
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.24.0",
 ]
+
+[tool.setuptools.packages.find]
+include = ["src*", "mcp_server*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

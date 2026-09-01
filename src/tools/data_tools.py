@@ -45,7 +45,10 @@ def query_dataset(
                 filter_expr = exprs[0]
                 for e in exprs[1:]:
                     filter_expr = filter_expr & e
-        df = _s3_tables.query(filter_expr=filter_expr, columns=columns, limit=limit)
+        # When aggregating, pull all matching rows so group statistics cover the
+        # full dataset — the row limit applies to the aggregated output only.
+        query_limit = 100000 if group_by else limit
+        df = _s3_tables.query(filter_expr=filter_expr, columns=columns, limit=query_limit)
         if group_by and group_by in df.columns:
             numeric_cols = df.select_dtypes(include="number").columns
             df = df.groupby(group_by)[numeric_cols].agg(agg_func).reset_index()
