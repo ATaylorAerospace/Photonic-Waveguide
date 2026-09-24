@@ -51,12 +51,14 @@ class S3TablesQuery:
         columns: Optional[list[str]] = None,
         limit: int = 1000,
     ) -> pd.DataFrame:
-        """Execute a filtered query with predicate pushdown."""
+        """Execute a filtered query with predicate pushdown.
+
+        Uses a scanner so the read stops as soon as `limit` rows are
+        collected, instead of materializing every matching row first.
+        """
         dataset = self._get_dataset()
-        table = dataset.to_table(filter=filter_expr, columns=columns)
-        if len(table) > limit:
-            table = table.slice(0, limit)
-        return table.to_pandas()
+        scanner = dataset.scanner(filter=filter_expr, columns=columns)
+        return scanner.head(limit).to_pandas()
 
     def query_low_loss(
         self,
@@ -94,6 +96,13 @@ class S3TablesQuery:
         agg: str = "mean",
         filter_expr: Optional[ds.Expression] = None,
     ) -> pd.DataFrame:
-        """Group-by aggregation with optional pre-filtering."""
-        df = self.query(filter_expr=filter_expr, columns=[group_by, value_column], limit=100000)
-        return df.groupby(group_by)[value_column].agg(agg).reset_index()
+        """Group-by aggregation with optional pre-filtering.
+
+        Aggregates natively in Arrow instead of materializing up to 100K
+        rows into a pandas DataFrame first.
+        """
+        dataset = self._get_dataset()
+        table = dataset.to_table(filter=filter_expr, columns=[group_by, value_column])
+        aggregated = table.group_by(group_by).aggregate([(value_column, agg)])
+        df = aggregated.to_pandas()
+        return df.rename(columns={f"{value_column}_{agg}": value_column})

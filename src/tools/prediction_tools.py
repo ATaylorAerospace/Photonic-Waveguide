@@ -1,5 +1,7 @@
 """XGBoost-based prediction tools for fast first-pass estimates."""
 import os
+from functools import lru_cache
+
 import joblib
 import numpy as np
 from strands import tool
@@ -7,6 +9,12 @@ from strands import tool
 from src.models.features import encode_categorical
 
 MODEL_PATH = os.getenv("MODEL_ARTIFACTS_PATH", "models/")
+
+
+@lru_cache(maxsize=4)
+def _load_model(model_file: str):
+    """Load the model once per path — joblib.load per call costs ~50-100ms."""
+    return joblib.load(model_file)
 
 
 @tool
@@ -23,7 +31,7 @@ def predict_loss(
     model_file = os.path.join(MODEL_PATH, "xgboost_loss_model.joblib")
     if not os.path.exists(model_file):
         return {"error": "Model not trained yet. Run: python -m src.models.train"}
-    model = joblib.load(model_file)
+    model = _load_model(model_file)
     pol_enc = encode_categorical("polarization", polarization)
     dep_enc = encode_categorical("deposition_method", deposition_method)
     etch_enc = encode_categorical("etch_method", etch_method)

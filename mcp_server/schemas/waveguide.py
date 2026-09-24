@@ -57,12 +57,16 @@ class MaskGenInput(BaseModel):
     width_um: float = Field(..., gt=0, description="Waveguide width in microns")
     height_nm: float = Field(..., gt=0, description="Waveguide height in nm (stored as metadata)")
     length_mm: float = Field(..., gt=0, description="Total waveguide length in mm")
-    bend_radius_um: float = Field(default=50.0, gt=0, description="Bend radius in microns")
     io_type: str = Field(default="edge_coupler", pattern="^(edge_coupler|grating_coupler)$")
     taper_length_um: float = Field(default=200.0, gt=0, description="Taper length in microns")
-    routing: str = Field(default="bezier", pattern="^(manhattan|bezier)$")
     layer: tuple[int, int] = Field(default=(1, 0), description="GDS layer and datatype")
-    output_filename: str = Field(default="waveguide_design.gds", description="Output GDS filename")
+    output_filename: str = Field(
+        default="waveguide_design.gds",
+        # Bare filename only — path separators would let a caller write
+        # outside the configured GDS output directory.
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]*\.gds$",
+        description="Output GDS filename (bare filename, no directories)",
+    )
 
 
 class MaskGenOutput(BaseModel):
@@ -70,7 +74,6 @@ class MaskGenOutput(BaseModel):
     gds_file_path: str = Field(description="Path to the generated GDSII file")
     cell_name: str = Field(description="Top-level cell name")
     total_length_um: float = Field(description="Total physical length in microns")
-    num_bends: int = Field(description="Number of bends in the layout")
     bounding_box: tuple[tuple[float, float], tuple[float, float]] = Field(
         description="Bounding box as ((x_min, y_min), (x_max, y_max)) in µm"
     )

@@ -1,6 +1,10 @@
 """GDSII mask generation using gdsfactory."""
+import hashlib
+import json
 import os
+
 import gdsfactory as gf
+
 from mcp_server.config import GDS_OUTPUT_DIR
 from mcp_server.schemas.waveguide import MaskGenInput, MaskGenOutput
 
@@ -11,6 +15,21 @@ class MaskGenerator:
     def __init__(self, output_dir: str = GDS_OUTPUT_DIR):
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
+
+    @staticmethod
+    def _output_filename(params: MaskGenInput) -> str:
+        """Derive a geometry-unique filename from the requested one.
+
+        Different designs sharing the default filename would otherwise
+        overwrite each other's GDS file while the DynamoDB cache keeps
+        serving the old path — returning a file whose contents belong to
+        another design.
+        """
+        stem, ext = os.path.splitext(os.path.basename(params.output_filename))
+        digest = hashlib.sha256(
+            json.dumps(params.model_dump(), sort_keys=True).encode()
+        ).hexdigest()[:12]
+        return f"{stem}_{digest}{ext or '.gds'}"
 
     def generate(self, params: MaskGenInput) -> MaskGenOutput:
         """Generate a foundry-ready GDSII file from waveguide parameters."""
@@ -56,7 +75,7 @@ class MaskGenerator:
             gc_out_ref = c.add_ref(gc_out)
             gc_out_ref.connect("o1", taper_out_ref.ports["o2"])
 
-        output_path = os.path.join(self.output_dir, params.output_filename)
+        output_path = os.path.join(self.output_dir, self._output_filename(params))
         c.write_gds(output_path)
 
         # gdsfactory >= 8 (kfactory-based): bbox is a method returning a DBox.
@@ -68,6 +87,5 @@ class MaskGenerator:
             gds_file_path=output_path,
             cell_name=c.name,
             total_length_um=length_um + 2 * params.taper_length_um,
-            num_bends=0,
             bounding_box=bounding_box,
         )

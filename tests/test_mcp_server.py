@@ -32,5 +32,15 @@ class TestInverseDesignInput:
 class TestMaskGenInput:
     def test_valid_input(self):
         params = MaskGenInput(width_um=1.5, height_nm=400, length_mm=10.0)
-        assert params.routing == "bezier"
+        assert params.io_type == "edge_coupler"
         assert params.output_filename == "waveguide_design.gds"
+
+    def test_rejects_path_traversal_filename(self):
+        with pytest.raises(Exception):
+            MaskGenInput(width_um=1.5, height_nm=400, length_mm=10.0,
+                         output_filename="../../evil.gds")
+
+    def test_rejects_absolute_path_filename(self):
+        with pytest.raises(Exception):
+            MaskGenInput(width_um=1.5, height_nm=400, length_mm=10.0,
+                         output_filename="/tmp/evil.gds")

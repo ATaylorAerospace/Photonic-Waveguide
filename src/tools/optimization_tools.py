@@ -1,15 +1,7 @@
 """Optimization tools that call the MCP server's optimize_waveguide endpoint."""
-import os
-import asyncio
 from strands import tool
-from fastmcp import Client
 
-MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8000/mcp")
-
-
-async def _call_optimize(params: dict) -> dict:
-    async with Client(MCP_SERVER_URL) as client:
-        return await client.call_tool("optimize_waveguide", params)
+from src.tools.mcp_client import call_mcp_tool
 
 
 @tool
@@ -23,8 +15,8 @@ def optimize_design(
     Uses automatic differentiation to find the optimal width and height
     that achieve the target metric value.
     """
-    return asyncio.run(_call_optimize({
+    return call_mcp_tool("optimize_waveguide", {
         "target_metric": target_metric, "target_value": target_value,
         "wavelength_nm": wavelength_nm, "polarization": polarization,
         "constraints": constraints or {},
-    }))
+    })

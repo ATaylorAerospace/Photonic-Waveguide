@@ -6,6 +6,8 @@ results before running expensive physics, and writing results back on cache miss
 
 Run with: python -m mcp_server.server
 """
+import os
+
 from fastmcp import FastMCP
 from mcp_server.config import MCP_SERVER_HOST, MCP_SERVER_PORT
 from mcp_server.schemas.waveguide import (
@@ -63,17 +65,20 @@ def solve_waveguide_mode(
         polarization: "TE" or "TM"
         num_modes: Number of modes to solve (1-10)
     """
-    raw_params = {
-        "width_um": width_um, "height_nm": height_nm,
-        "core_material": core_material, "cladding_material": cladding_material,
-        "wavelength_nm": wavelength_nm, "polarization": polarization,
-        "num_modes": num_modes,
-    }
+    # Validate before touching the cache: invalid inputs must never be served
+    # from (or written to) the cache, and the validated dump gives every
+    # equivalent request the same cache key.
+    params = ModeSolverInput(
+        width_um=width_um, height_nm=height_nm,
+        core_material=core_material, cladding_material=cladding_material,
+        wavelength_nm=wavelength_nm, polarization=polarization,
+        num_modes=num_modes,
+    )
+    raw_params = params.model_dump()
     cached = _cache.get("solve_waveguide_mode", raw_params)
     if cached is not None:
         cached["cache_hit"] = True
         return cached
-    params = ModeSolverInput(**raw_params)
     result = _solver.solve(params).model_dump()
     result["cache_hit"] = False
     _cache.put("solve_waveguide_mode", raw_params, result)
@@ -111,18 +116,6 @@ def optimize_waveguide(
         max_iterations: Maximum optimization iterations
         learning_rate: Gradient descent step size
     """
-    raw_params = {
-        "target_metric": target_metric, "target_value": target_value,
-        "wavelength_nm": wavelength_nm, "polarization": polarization,
-        "constraints": constraints or {},
-        "width_range_um": list(width_range_um),
-        "height_range_nm": list(height_range_nm),
-        "max_iterations": max_iterations, "learning_rate": learning_rate,
-    }
-    cached = _cache.get("optimize_waveguide", raw_params)
-    if cached is not None:
-        cached["cache_hit"] = True
-        return cached
     params = InverseDesignInput(
         target_metric=target_metric, target_value=target_value,
         wavelength_nm=wavelength_nm, polarization=polarization,
@@ -130,6 +123,11 @@ def optimize_waveguide(
         width_range_um=width_range_um, height_range_nm=height_range_nm,
         max_iterations=max_iterations, learning_rate=learning_rate,
     )
+    raw_params = params.model_dump()
+    cached = _cache.get("optimize_waveguide", raw_params)
+    if cached is not None:
+        cached["cache_hit"] = True
+        return cached
     result = _designer.optimize(params).model_dump()
     result["cache_hit"] = False
     _cache.put("optimize_waveguide", raw_params, result)
@@ -141,17 +139,17 @@ def generate_mask(
     width_um: float,
     height_nm: float,
     length_mm: float,
-    bend_radius_um: float = 50.0,
     io_type: str = "edge_coupler",
     taper_length_um: float = 200.0,
-    routing: str = "bezier",
     layer: tuple[int, int] = (1, 0),
     output_filename: str = "waveguide_design.gds",
 ) -> dict:
     """Generate a foundry-ready GDSII mask file from waveguide parameters.
 
-    Uses gdsfactory to create a photonic layout with proper routing,
-    tapers, and I/O couplers. Returns the file path to the generated .gds file.
+    Uses gdsfactory to create a straight photonic waveguide layout with
+    inverse tapers and optional grating couplers. Returns the file path to
+    the generated .gds file; the filename is suffixed with a geometry hash
+    so different designs never overwrite each other.
 
     GDSII file paths are cached in DynamoDB — if the exact same layout was
     previously generated, the cached file path is returned immediately.
@@ -160,32 +158,21 @@ def generate_mask(
         width_um: Waveguide width in microns
         height_nm: Waveguide height in nm (stored as layout metadata)
         length_mm: Total waveguide length in millimeters
-        bend_radius_um: Bend radius in microns
         io_type: "edge_coupler" or "grating_coupler"
         taper_length_um: Taper length in microns
-        routing: "manhattan" or "bezier"
         layer: GDS layer and datatype as (layer, datatype)
-        output_filename: Output filename for the .gds file
+        output_filename: Base filename for the .gds file (bare filename, no directories)
     """
-    raw_params = {
-        "width_um": width_um, "height_nm": height_nm,
-        "length_mm": length_mm, "bend_radius_um": bend_radius_um,
-        "io_type": io_type, "taper_length_um": taper_length_um,
-        "routing": routing, "layer": list(layer),
-        "output_filename": output_filename,
-    }
-    cached = _cache.get("generate_mask", raw_params)
-    if cached is not None:
-        import os
-        if os.path.exists(cached.get("gds_file_path", "")):
-            cached["cache_hit"] = True
-            return cached
     params = MaskGenInput(
         width_um=width_um, height_nm=height_nm, length_mm=length_mm,
-        bend_radius_um=bend_radius_um, io_type=io_type,
-        taper_length_um=taper_length_um, routing=routing,
+        io_type=io_type, taper_length_um=taper_length_um,
         layer=layer, output_filename=output_filename,
     )
+    raw_params = params.model_dump()
+    cached = _cache.get("generate_mask", raw_params)
+    if cached is not None and os.path.exists(cached.get("gds_file_path", "")):
+        cached["cache_hit"] = True
+        return cached
     result = _mask_gen.generate(params).model_dump()
     result["cache_hit"] = False
     _cache.put("generate_mask", raw_params, result)
