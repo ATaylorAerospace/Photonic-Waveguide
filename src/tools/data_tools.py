@@ -1,9 +1,12 @@
 """Dataset loading, filtering, and query tools."""
+import logging
 import os
 import pandas as pd
 from strands import tool
 from mcp_server.storage.s3_dataset import S3DatasetReader
 from mcp_server.storage.s3_tables import S3TablesQuery
+
+logger = logging.getLogger(__name__)
 
 _dataset_reader = S3DatasetReader()
 _s3_tables = S3TablesQuery()
@@ -53,8 +56,8 @@ def query_dataset(
             numeric_cols = df.select_dtypes(include="number").columns
             df = df.groupby(group_by)[numeric_cols].agg(agg_func).reset_index()
         return df.head(limit).to_dict(orient="records")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("S3 Tables query failed (%s); falling back to local dataset.", e)
     df = _load_dataset()
     if filters:
         for col, val in filters.items():
@@ -83,7 +86,8 @@ def query_low_loss_waveguides(
             columns=columns,
         )
         return df.head(limit).to_dict(orient="records")
-    except Exception:
+    except Exception as e:
+        logger.warning("S3 Tables query failed (%s); falling back to local dataset.", e)
         df = _load_dataset()
         mask = (df["propagation_loss_dB_cm"] < max_loss_db_cm)
         if "polarization" in df.columns:
@@ -95,12 +99,17 @@ def query_low_loss_waveguides(
 
 
 @tool
-def read_dataset_columns(columns: list[str]) -> dict:
-    """Read specific columns from the dataset using Parquet columnar reads."""
+def read_dataset_columns(columns: list[str], limit: int = 50) -> dict:
+    """Read specific columns from the dataset using Parquet columnar reads.
+
+    Returns at most `limit` rows — the full dataset has ~90K rows, far more
+    than an agent context can hold.
+    """
     try:
         table = _dataset_reader.read_columns(columns)
-        return table.to_pandas().to_dict(orient="records")
-    except Exception:
+        return table.to_pandas().head(limit).to_dict(orient="records")
+    except Exception as e:
+        logger.warning("Columnar read failed (%s); falling back to local dataset.", e)
         df = _load_dataset()
         cols = [c for c in columns if c in df.columns]
-        return df[cols].to_dict(orient="records")
+        return df[cols].head(limit).to_dict(orient="records")

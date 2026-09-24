@@ -35,9 +35,9 @@ class TestSimulationCacheSortKey:
 
     def test_mask_gen_key(self):
         key = SimulationCache._build_sort_key("generate_mask", {
-            "io_type": "edge_coupler", "routing": "bezier",
+            "io_type": "edge_coupler",
         })
-        assert key == "GDS#edge_coupler#bezier"
+        assert key == "GDS#edge_coupler"
 
 
 class TestSimulationCacheGracefulDegradation:

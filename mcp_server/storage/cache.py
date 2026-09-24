@@ -11,6 +11,7 @@ Schema:
 """
 import hashlib
 import json
+import logging
 import time
 from typing import Optional
 
@@ -18,6 +19,8 @@ import boto3
 from botocore.exceptions import ClientError
 
 from mcp_server.config import DYNAMODB_TABLE_NAME, DYNAMODB_REGION, CACHE_TTL_DAYS
+
+logger = logging.getLogger(__name__)
 
 
 class SimulationCache:
@@ -30,15 +33,33 @@ class SimulationCache:
         ttl_days: int = CACHE_TTL_DAYS,
     ):
         self.table_name = table_name
+        self.region = region
         self.ttl_days = ttl_days
         self._enabled = True
-        try:
-            self._dynamodb = boto3.resource("dynamodb", region_name=region)
-            self._table = self._dynamodb.Table(table_name)
-            self._table.table_status
-        except (ClientError, Exception) as e:
-            print(f"[SimulationCache] DynamoDB unavailable ({e}). Running without cache.")
-            self._enabled = False
+        self._table = None
+
+    def _get_table(self):
+        """Connect lazily on first use.
+
+        The cache is constructed at server import time; probing DynamoDB
+        there would stall startup for the full boto3 timeout/retry cycle
+        whenever AWS is unreachable.
+        """
+        if not self._enabled:
+            return None
+        if self._table is None:
+            try:
+                dynamodb = boto3.resource("dynamodb", region_name=self.region)
+                table = dynamodb.Table(self.table_name)
+                table.table_status  # probe — raises if unreachable or missing
+                self._table = table
+            except Exception as e:
+                logger.warning(
+                    "[SimulationCache] DynamoDB unavailable (%s). Running without cache.", e
+                )
+                self._enabled = False
+                return None
+        return self._table
 
     @staticmethod
     def _hash_params(params: dict) -> str:
@@ -65,37 +86,38 @@ class SimulationCache:
             return f"OPTIM#{metric}#{value}"
         elif tool_name == "generate_mask":
             io = params.get("io_type", "edge_coupler")
-            routing = params.get("routing", "bezier")
-            return f"GDS#{io}#{routing}"
+            return f"GDS#{io}"
         return f"OTHER#{tool_name}"
 
     def get(self, tool_name: str, params: dict) -> Optional[dict]:
         """Look up a cached simulation result."""
-        if not self._enabled:
+        table = self._get_table()
+        if table is None:
             return None
         geometry_hash = self._hash_params(params)
         sort_key = self._build_sort_key(tool_name, params)
         try:
-            response = self._table.get_item(
+            response = table.get_item(
                 Key={"geometry_hash": geometry_hash, "sort_key": sort_key}
             )
             item = response.get("Item")
             if item and "result" in item:
                 return json.loads(item["result"])
-        except ClientError:
-            pass
+        except ClientError as e:
+            logger.warning("[SimulationCache] Cache read failed: %s", e)
         return None
 
     def put(self, tool_name: str, params: dict, result: dict) -> None:
         """Store a simulation result in the cache."""
-        if not self._enabled:
+        table = self._get_table()
+        if table is None:
             return
         geometry_hash = self._hash_params(params)
         sort_key = self._build_sort_key(tool_name, params)
         now = int(time.time())
         ttl = now + (self.ttl_days * 86400)
         try:
-            self._table.put_item(
+            table.put_item(
                 Item={
                     "geometry_hash": geometry_hash,
                     "sort_key": sort_key,
@@ -106,17 +128,18 @@ class SimulationCache:
                 }
             )
         except ClientError as e:
-            print(f"[SimulationCache] Failed to write cache entry: {e}")
+            logger.warning("[SimulationCache] Failed to write cache entry: %s", e)
 
     def invalidate(self, tool_name: str, params: dict) -> None:
         """Remove a specific cache entry."""
-        if not self._enabled:
+        table = self._get_table()
+        if table is None:
             return
         geometry_hash = self._hash_params(params)
         sort_key = self._build_sort_key(tool_name, params)
         try:
-            self._table.delete_item(
+            table.delete_item(
                 Key={"geometry_hash": geometry_hash, "sort_key": sort_key}
             )
-        except ClientError:
-            pass
+        except ClientError as e:
+            logger.warning("[SimulationCache] Failed to invalidate cache entry: %s", e)

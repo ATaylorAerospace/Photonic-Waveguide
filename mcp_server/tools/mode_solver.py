@@ -61,10 +61,17 @@ class WaveguideSolver:
         # substrate slab of thickness DEFAULT_BOUNDARY_UM.
         x_pts = structure.x
         y_pts = structure.y
-        # The masking below assumes intensity is indexed [y, x]; EMpy-backed
-        # fields may come back [x, y], so transpose if the shape says so.
-        if intensity.shape == (x_pts.size, y_pts.size) and x_pts.size != y_pts.size:
+        # The masking below needs intensity indexed [y, x]. EMpy-backed
+        # solvers return fields indexed [x, y]; shape alone cannot reveal
+        # orientation on a square grid, so rely on that convention and use
+        # shape only to reject grids that match neither orientation.
+        if intensity.shape == (x_pts.size, y_pts.size):
             intensity = intensity.T
+        elif intensity.shape != (y_pts.size, x_pts.size):
+            raise ValueError(
+                f"Mode field shape {intensity.shape} does not match the solver "
+                f"grid ({y_pts.size}, {x_pts.size})"
+            )
         x_center = (x_pts.min() + x_pts.max()) / 2
         core_x_mask = np.abs(x_pts - x_center) <= params.width_um / 2
         core_y_mask = (y_pts >= DEFAULT_BOUNDARY_UM) & (y_pts <= DEFAULT_BOUNDARY_UM + height_um)

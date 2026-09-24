@@ -32,7 +32,7 @@ Designing high-performance silicon nitride photonic waveguides is a complex, ite
 
 * **🔬 Solve waveguide modes** — compute n_eff, optical confinement, mode field diameter, and group index using fully vectorial eigenmode expansion (modesolverpy) in milliseconds.
 * **⚡ Inverse design** — find optimal waveguide geometry via gradient-based optimization using automatic differentiation (SAX + JAX), not brute-force search.
-* **🏭 Generate fabrication masks** — produce foundry-ready GDSII layout files automatically using gdsfactory with proper Bezier routing and I/O coupling.
+* **🏭 Generate fabrication masks** — produce foundry-ready GDSII layout files automatically using gdsfactory, with inverse-taper edge couplers or grating couplers for I/O.
 * **🔮 Fast-pass ML predictions** — use XGBoost models trained on 90K configurations for instant first-pass propagation loss estimates.
 * **📊 Analyze fabrication data** — compare batches, identify yield issues, and uncover parameter correlations from the dataset.
 * **🧪 Explain physics** — provide analytical photonic calculations and domain knowledge on demand.
@@ -203,7 +203,7 @@ For rigorous, physics grounded inverse design to minimize insertion loss or hit 
 
 ### Tool 3: `generate_mask` (gdsfactory)
 
-Once the agent has optimized the waveguide, the engineer needs to physically build it. gdsfactory is the industry-standard Python library for photonic layout generation. The MCP server exposes a `generate_mask` tool that, when the user finalizes the design, uses gdsfactory to automatically render the **GDSII file** (handling the Bezier curves and routing) and returns the file path to the user's workspace.
+Once the agent has optimized the waveguide, the engineer needs to physically build it. gdsfactory is the industry-standard Python library for photonic layout generation. The MCP server exposes a `generate_mask` tool that, when the user finalizes the design, uses gdsfactory to automatically render the **GDSII file** — a straight waveguide section with inverse tapers and, optionally, elliptical grating couplers — and returns the file path to the user's workspace. Output filenames are suffixed with a hash of the design parameters, so two different designs can never overwrite each other's mask file (and the DynamoDB cache can never serve a stale one).
 
 ---
 
@@ -423,8 +423,7 @@ agent("I need propagation loss below 0.3 dB/cm at 1550nm TE. What waveguide "
 
 ```python
 agent("Generate a GDSII mask for my optimized 1.2µm wide, 350nm tall waveguide. "
-      "Use a 10mm straight section with 50µm bend radius, edge couplers, "
-      "and Bezier routing.")
+      "Use a 10mm straight section with edge couplers.")
 ```
 
 ### 📊 Analysis Query
@@ -490,6 +489,19 @@ export DYNAMODB_TABLE_NAME=photonic-simulation-cache
 export S3_TABLES_DATABASE=photonic_waveguide_db
 export S3_TABLES_TABLE=waveguide_measurements
 ```
+
+---
+
+## 🔧 Recent Fixes & Performance Improvements
+
+* **Correct mask caching:** generated GDS filenames now carry a geometry hash, so designs sharing a filename can no longer overwrite each other while the DynamoDB cache serves a stale path. `output_filename` is validated as a bare filename (no path separators) to prevent writes outside the output directory.
+* **Honest mask API:** unused `bend_radius_um` and `routing` parameters were removed from `generate_mask` (layouts are straight sections with tapers/couplers); `num_bends` was dropped from the output.
+* **Event-loop-safe MCP clients:** agent tools now call the physics server through a shared helper (`src/tools/mcp_client.py`) that works inside or outside a running asyncio loop and unwraps MCP results into plain dicts.
+* **Faster inverse design:** the optimizer uses a JIT-compiled `jax.value_and_grad` in normalized coordinates — one model evaluation per iteration and no hand-tuned per-parameter gradient scaling.
+* **Faster predictions:** the XGBoost model is loaded once and cached instead of being re-read from disk on every call.
+* **Leaner data queries:** S3 Tables reads stop as soon as the row limit is reached, aggregations run natively in Arrow, and `read_dataset_columns` is capped (default 50 rows) so tools can't dump the full 90K-row dataset into the agent context.
+* **Robust mode analysis:** the confinement calculation orients the mode field deterministically from the solver's [x, y] convention instead of guessing from array shape (which failed on square grids).
+* **Non-blocking startup & visible errors:** the DynamoDB cache connects lazily on first use instead of at import, and cache/storage fallbacks are logged instead of silently swallowed. Tool inputs are validated before cache lookups, so invalid or unnormalized requests can't fragment or poison the cache.
 
 ---
 

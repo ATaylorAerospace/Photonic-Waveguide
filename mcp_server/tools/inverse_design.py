@@ -43,42 +43,40 @@ class InverseDesigner:
         predicted = model_out[target_metric]
         return (predicted - target_value) ** 2
 
-    def _project_params(self, params: dict, width_range: tuple, height_range: tuple) -> dict:
-        return {
-            "width_um": jnp.clip(params["width_um"], width_range[0], width_range[1]),
-            "height_nm": jnp.clip(params["height_nm"], height_range[0], height_range[1]),
-        }
-
     def optimize(self, inputs: InverseDesignInput) -> InverseDesignOutput:
         """Run gradient-based inverse design optimization."""
         wavelength_um = inputs.wavelength_nm / 1000.0
-        params = {
-            "width_um": jnp.array((inputs.width_range_um[0] + inputs.width_range_um[1]) / 2),
-            "height_nm": jnp.array((inputs.height_range_nm[0] + inputs.height_range_nm[1]) / 2),
-        }
+        w_lo, w_hi = inputs.width_range_um
+        h_lo, h_hi = inputs.height_range_nm
 
-        grad_fn = jax.grad(
-            lambda p: self._loss_fn(p, inputs.target_metric, inputs.target_value, wavelength_um)
-        )
+        # Optimize in [0, 1]-normalized coordinates so both parameters share
+        # one well-conditioned learning rate regardless of their units.
+        def denormalize(p):
+            return {
+                "width_um": w_lo + p[0] * (w_hi - w_lo),
+                "height_nm": h_lo + p[1] * (h_hi - h_lo),
+            }
 
+        value_and_grad = jax.jit(jax.value_and_grad(
+            lambda p: self._loss_fn(
+                denormalize(p), inputs.target_metric, inputs.target_value, wavelength_um
+            )
+        ))
+
+        p = jnp.array([0.5, 0.5])
         convergence_history = []
         converged_iter = inputs.max_iterations
 
         for i in range(inputs.max_iterations):
-            loss_val = float(self._loss_fn(
-                params, inputs.target_metric, inputs.target_value, wavelength_um
-            ))
+            loss_val, grads = value_and_grad(p)
+            loss_val = float(loss_val)
             convergence_history.append(loss_val)
             if loss_val < 1e-8:
                 converged_iter = i + 1
                 break
-            grads = grad_fn(params)
-            params = {
-                "width_um": params["width_um"] - inputs.learning_rate * grads["width_um"],
-                "height_nm": params["height_nm"] - inputs.learning_rate * grads["height_nm"] * 100,
-            }
-            params = self._project_params(params, inputs.width_range_um, inputs.height_range_nm)
+            p = jnp.clip(p - inputs.learning_rate * grads, 0.0, 1.0)
 
+        params = denormalize(p)
         final_model = self._waveguide_model(params, wavelength_um)
         achieved = float(final_model[inputs.target_metric])
 
