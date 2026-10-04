@@ -21,6 +21,9 @@ class ModeSolverOutput(BaseModel):
     confinement_factor: float = Field(description="Optical confinement factor (0 to 1)")
     mfd_um: float = Field(description="Mode field diameter in microns at 1/e² intensity")
     group_index: float = Field(description="Group index n_g")
+    te_fraction: float = Field(
+        description="Fraction of transverse E-field energy in Ex (near 1 for TE, near 0 for TM)"
+    )
     mode_profile_path: Optional[str] = Field(default=None, description="Path to saved mode profile image")
 
 

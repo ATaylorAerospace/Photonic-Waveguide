@@ -1,19 +1,18 @@
-"""Inverse design engine using SAX + JAX."""
+"""Inverse design engine: gradient descent with JAX autodiff on an analytic waveguide model."""
 import jax
 import jax.numpy as jnp
-import sax
 from mcp_server.config import MATERIAL_INDEX
 from mcp_server.schemas.waveguide import InverseDesignInput, InverseDesignOutput
 
 
 class InverseDesigner:
-    """Wraps SAX circuit solver with JAX autodiff for gradient-based inverse design."""
+    """Differentiable waveguide surrogate optimized with JAX gradients."""
 
     def __init__(self):
         pass
 
     def _waveguide_model(self, params: dict, wavelength_um: float) -> dict:
-        """Differentiable waveguide S-parameter model using SAX."""
+        """Differentiable analytic waveguide model (closed-form V-number heuristics)."""
         width = params["width_um"]
         height_um = params["height_nm"] / 1000.0
         n_core = MATERIAL_INDEX["SiN"]

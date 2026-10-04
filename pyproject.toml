@@ -11,13 +11,13 @@ license = {text = "MIT"}
 requires-python = ">=3.12"
 authors = [{name = "A Taylor"}]
 dependencies = [
-    "strands-agents>=0.3.0",
+    "strands-agents>=0.3.0,<2",
     "strands-agents-tools>=0.2.0",
     "bedrock-agentcore>=0.1.0",
     "boto3>=1.35.0",
     "botocore>=1.35.0",
     "pandas>=2.2.0",
-    "numpy>=1.26.0",
+    "numpy>=1.26.0,<3",
     "scikit-learn>=1.5.0",
     "xgboost>=2.1.0",
     "datasets>=3.0.0",
@@ -25,17 +25,18 @@ dependencies = [
     "opentelemetry-api>=1.20.0",
     "opentelemetry-sdk>=1.20.0",
     "joblib>=1.4.0",
-    "pydantic>=2.0.0",
-    "fastmcp>=2.0.0",
+    "pydantic>=2.0.0,<3",
+    "fastmcp>=2.0.0,<5",
 ]
 
 [project.optional-dependencies]
 physics = [
-    "modesolverpy>=0.4.0",
-    "sax>=0.14.0",
+    "scipy>=1.14.0,<2",
+    "modesolverpy>=0.4.0,<0.5",
+    "six>=1.16.0",
     "jax>=0.4.30",
     "jaxlib>=0.4.30",
-    "gdsfactory>=8.0.0",
+    "gdsfactory>=9.0.0,<10",
     "gdstk>=0.9.0",
 ]
 storage = [

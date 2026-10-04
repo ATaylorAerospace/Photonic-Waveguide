@@ -10,7 +10,7 @@ def optimize_design(
     wavelength_nm: float = 1550.0, polarization: str = "TE",
     constraints: dict | None = None,
 ) -> dict:
-    """Optimize waveguide geometry using gradient-based inverse design via SAX + JAX.
+    """Optimize waveguide geometry using gradient-based inverse design via JAX autodiff.
 
     Uses automatic differentiation to find the optimal width and height
     that achieve the target metric value.

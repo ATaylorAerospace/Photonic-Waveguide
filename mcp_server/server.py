@@ -25,7 +25,7 @@ mcp = FastMCP(
     instructions=(
         "Deterministic physics tools for SiN photonic waveguide design. "
         "Provides eigenmode solving (modesolverpy), gradient-based inverse "
-        "design (SAX + JAX), and GDSII mask generation (gdsfactory). "
+        "design (JAX autodiff), and GDSII mask generation (gdsfactory). "
         "Backed by a hybrid storage layer: DynamoDB simulation cache, "
         "S3 Express One Zone Parquet bulk data, and S3 Tables SQL queries."
     ),
@@ -50,8 +50,10 @@ def solve_waveguide_mode(
     """Compute waveguide eigenmode properties using fully vectorial EME.
 
     Returns effective refractive index (n_eff), optical confinement factor,
-    mode field diameter (MFD), and group index for the specified waveguide
-    cross-section and operating conditions.
+    mode field diameter (MFD), group index, and the TE field fraction of the
+    selected mode for the specified waveguide cross-section and operating
+    conditions. The lowest-order mode of the requested polarization is
+    reported.
 
     Results are cached in DynamoDB — repeated calls for the same geometry
     return in sub-10ms without re-running the eigenmode solver.
@@ -99,8 +101,8 @@ def optimize_waveguide(
 ) -> dict:
     """Perform gradient-based inverse design to optimize waveguide geometry.
 
-    Uses SAX (JAX-based photonic circuit solver) with automatic differentiation
-    to find the optimal width and height that achieve the target metric value.
+    Uses JAX automatic differentiation on an analytic waveguide model to find
+    the width and height that achieve the target metric value.
 
     Results are cached in DynamoDB — identical optimization requests return
     the previously computed optimum instantly.

@@ -53,7 +53,9 @@ def query_dataset(
         query_limit = 100000 if group_by else limit
         df = _s3_tables.query(filter_expr=filter_expr, columns=columns, limit=query_limit)
         if group_by and group_by in df.columns:
-            numeric_cols = df.select_dtypes(include="number").columns
+            # The key column must not be aggregated too, or reset_index() fails
+            # trying to insert it twice.
+            numeric_cols = [c for c in df.select_dtypes(include="number").columns if c != group_by]
             df = df.groupby(group_by)[numeric_cols].agg(agg_func).reset_index()
         return df.head(limit).to_dict(orient="records")
     except Exception as e:
@@ -66,7 +68,7 @@ def query_dataset(
     if columns:
         df = df[[c for c in columns if c in df.columns]]
     if group_by and group_by in df.columns:
-        numeric_cols = df.select_dtypes(include="number").columns
+        numeric_cols = [c for c in df.select_dtypes(include="number").columns if c != group_by]
         df = df.groupby(group_by)[numeric_cols].agg(agg_func).reset_index()
     return df.head(limit).to_dict(orient="records")
 
