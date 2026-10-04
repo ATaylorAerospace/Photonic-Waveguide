@@ -65,13 +65,14 @@ class S3TablesQuery:
         max_loss_db_cm: float = 2.0,
         polarization: str = "TE",
         columns: Optional[list[str]] = None,
+        limit: int = 1000,
     ) -> pd.DataFrame:
         """Convenience: find waveguides below a loss threshold."""
         filter_expr = (
             (ds.field("propagation_loss_dB_cm") < max_loss_db_cm) &
             (ds.field("polarization") == polarization)
         )
-        return self.query(filter_expr=filter_expr, columns=columns)
+        return self.query(filter_expr=filter_expr, columns=columns, limit=limit)
 
     def query_by_geometry(
         self,

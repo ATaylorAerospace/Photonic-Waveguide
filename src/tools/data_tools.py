@@ -85,8 +85,9 @@ def query_low_loss_waveguides(
             max_loss_db_cm=max_loss_db_cm,
             polarization=polarization,
             columns=columns,
+            limit=limit,
         )
-        return df.head(limit).to_dict(orient="records")
+        return df.to_dict(orient="records")
     except Exception as e:
         logger.warning("S3 Tables query failed (%s); falling back to local dataset.", e)
         df = _load_dataset()
@@ -107,8 +108,8 @@ def read_dataset_columns(columns: list[str], limit: int = 50) -> dict:
     than an agent context can hold.
     """
     try:
-        table = _dataset_reader.read_columns(columns)
-        return table.to_pandas().head(limit).to_dict(orient="records")
+        table = _dataset_reader.read_columns(columns, limit=limit)
+        return table.to_pandas().to_dict(orient="records")
     except Exception as e:
         logger.warning("Columnar read failed (%s); falling back to local dataset.", e)
         df = _load_dataset()

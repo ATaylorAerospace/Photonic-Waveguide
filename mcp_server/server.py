@@ -9,7 +9,18 @@ Run with: python -m mcp_server.server
 import os
 
 from fastmcp import FastMCP
-from mcp_server.config import MCP_SERVER_HOST, MCP_SERVER_PORT
+from mcp_server.config import (
+    MCP_SERVER_HOST,
+    MCP_SERVER_PORT,
+    DEFAULT_WAVELENGTH_NM,
+    DEFAULT_POLARIZATION,
+    DEFAULT_MAX_ITERATIONS,
+    DEFAULT_LEARNING_RATE,
+    DEFAULT_WIDTH_RANGE_UM,
+    DEFAULT_HEIGHT_RANGE_NM,
+    DEFAULT_TAPER_LENGTH_UM,
+    DEFAULT_LAYER,
+)
 from mcp_server.schemas.waveguide import (
     ModeSolverInput,
     InverseDesignInput,
@@ -43,8 +54,8 @@ def solve_waveguide_mode(
     height_nm: float,
     core_material: str = "SiN",
     cladding_material: str = "SiO2",
-    wavelength_nm: float = 1550.0,
-    polarization: str = "TE",
+    wavelength_nm: float = DEFAULT_WAVELENGTH_NM,
+    polarization: str = DEFAULT_POLARIZATION,
     num_modes: int = 1,
 ) -> dict:
     """Compute waveguide eigenmode properties using fully vectorial EME.
@@ -91,13 +102,13 @@ def solve_waveguide_mode(
 def optimize_waveguide(
     target_metric: str,
     target_value: float,
-    wavelength_nm: float = 1550.0,
-    polarization: str = "TE",
+    wavelength_nm: float = DEFAULT_WAVELENGTH_NM,
+    polarization: str = DEFAULT_POLARIZATION,
     constraints: dict | None = None,
-    width_range_um: tuple[float, float] = (0.3, 5.0),
-    height_range_nm: tuple[float, float] = (100.0, 800.0),
-    max_iterations: int = 200,
-    learning_rate: float = 0.01,
+    width_range_um: tuple[float, float] = DEFAULT_WIDTH_RANGE_UM,
+    height_range_nm: tuple[float, float] = DEFAULT_HEIGHT_RANGE_NM,
+    max_iterations: int = DEFAULT_MAX_ITERATIONS,
+    learning_rate: float = DEFAULT_LEARNING_RATE,
 ) -> dict:
     """Perform gradient-based inverse design to optimize waveguide geometry.
 
@@ -105,14 +116,15 @@ def optimize_waveguide(
     the width and height that achieve the target metric value.
 
     Results are cached in DynamoDB — identical optimization requests return
-    the previously computed optimum instantly.
+    the previously computed optimum instantly. The result's `converged` flag
+    says whether the target was actually reached within max_iterations.
 
     Args:
         target_metric: "insertion_loss", "coupling_efficiency", "propagation_loss", or "confinement"
         target_value: Desired value (e.g. 0.2 for propagation_loss in dB/cm)
         wavelength_nm: Operating wavelength in nm
-        polarization: "TE" or "TM"
-        constraints: Fixed parameters e.g. {"deposition": "LPCVD"}
+        polarization: "TE" or "TM" (recorded; the analytic model is polarization-independent)
+        constraints: Fixed process parameters e.g. {"deposition": "LPCVD"} (recorded; not yet used)
         width_range_um: (min, max) width bounds in microns
         height_range_nm: (min, max) height bounds in nanometers
         max_iterations: Maximum optimization iterations
@@ -125,7 +137,10 @@ def optimize_waveguide(
         width_range_um=width_range_um, height_range_nm=height_range_nm,
         max_iterations=max_iterations, learning_rate=learning_rate,
     )
-    raw_params = params.model_dump()
+    # polarization and constraints do not influence the analytic model, so
+    # they are left out of the cache key: requests that differ only in them
+    # would otherwise recompute the identical optimum.
+    raw_params = params.model_dump(exclude={"polarization", "constraints"})
     cached = _cache.get("optimize_waveguide", raw_params)
     if cached is not None:
         cached["cache_hit"] = True
@@ -142,8 +157,8 @@ def generate_mask(
     height_nm: float,
     length_mm: float,
     io_type: str = "edge_coupler",
-    taper_length_um: float = 200.0,
-    layer: tuple[int, int] = (1, 0),
+    taper_length_um: float = DEFAULT_TAPER_LENGTH_UM,
+    layer: tuple[int, int] = DEFAULT_LAYER,
     output_filename: str = "waveguide_design.gds",
 ) -> dict:
     """Generate a foundry-ready GDSII mask file from waveguide parameters.

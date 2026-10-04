@@ -53,19 +53,38 @@ class TestSimulationCacheGracefulDegradation:
 
 
 class TestS3DatasetReader:
-    def test_local_csv_fallback(self, tmp_path):
+    @pytest.fixture
+    def csv_path(self, tmp_path):
         import pandas as pd
-        from mcp_server.storage.s3_dataset import S3DatasetReader
-        csv_path = tmp_path / "test.csv"
+        path = tmp_path / "test.csv"
         pd.DataFrame({
             "width_um": [1.0, 1.5, 2.0],
             "height_nm": [300, 400, 500],
             "propagation_loss_dB_cm": [0.5, 0.3, 0.2],
-        }).to_csv(csv_path, index=False)
-        reader = S3DatasetReader(bucket="nonexistent-bucket", local_fallback=str(csv_path))
+        }).to_csv(path, index=False)
+        return str(path)
+
+    def test_local_csv_fallback(self, csv_path):
+        from mcp_server.storage.s3_dataset import S3DatasetReader
+        reader = S3DatasetReader(bucket="nonexistent-bucket", local_fallback=csv_path)
         df = reader.to_pandas(columns=["width_um", "height_nm"])
         assert len(df) == 3
         assert list(df.columns) == ["width_um", "height_nm"]
+
+    def test_column_order_and_row_limit(self, csv_path):
+        from mcp_server.storage.s3_dataset import S3DatasetReader
+        reader = S3DatasetReader(bucket="nonexistent-bucket", local_fallback=csv_path)
+        df = reader.to_pandas(columns=["height_nm", "width_um", "no_such_column"], limit=2)
+        assert list(df.columns) == ["height_nm", "width_um"]
+        assert len(df) == 2
+
+    def test_failed_s3_attempt_is_not_retried_immediately(self, csv_path):
+        from mcp_server.storage.s3_dataset import S3DatasetReader
+        reader = S3DatasetReader(bucket="nonexistent-bucket", local_fallback=csv_path)
+        reader.read_columns(["width_um"])
+        assert reader._s3_available is False
+        assert reader._s3_filesystem() is None  # within the cool-down window
+        assert reader._try_s3_read(columns=["width_um"]) is None
 
 
 class TestS3TablesQuery:

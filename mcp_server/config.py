@@ -14,7 +14,10 @@ MATERIAL_INDEX = {
 # Server defaults
 DEFAULT_WAVELENGTH_NM = 1550.0
 DEFAULT_POLARIZATION = "TE"
-MCP_SERVER_HOST = os.getenv("MCP_SERVER_HOST", "0.0.0.0")
+# Loopback by default: the server has no authentication. Set
+# MCP_SERVER_HOST=0.0.0.0 to expose it beyond the local machine (the Docker
+# image does so, since the agent container must reach it).
+MCP_SERVER_HOST = os.getenv("MCP_SERVER_HOST", "127.0.0.1")
 MCP_SERVER_PORT = int(os.getenv("MCP_SERVER_PORT", "8000"))
 
 # Solver grid defaults
@@ -29,7 +32,6 @@ DEFAULT_WIDTH_RANGE_UM = (0.3, 5.0)
 DEFAULT_HEIGHT_RANGE_NM = (100.0, 800.0)
 
 # Mask generation defaults
-DEFAULT_BEND_RADIUS_UM = 50.0
 DEFAULT_TAPER_LENGTH_UM = 200.0
 DEFAULT_LAYER = (1, 0)
 GDS_OUTPUT_DIR = "output/gds"

@@ -28,6 +28,21 @@ class TestInverseDesignInput:
         with pytest.raises(Exception):
             InverseDesignInput(target_metric="invalid", target_value=0.2)
 
+    def test_fractional_metric_target_must_be_in_unit_interval(self):
+        with pytest.raises(Exception):
+            InverseDesignInput(target_metric="confinement", target_value=1.5)
+        with pytest.raises(Exception):
+            InverseDesignInput(target_metric="coupling_efficiency", target_value=0.0)
+
+    def test_loss_target_must_be_positive(self):
+        with pytest.raises(Exception):
+            InverseDesignInput(target_metric="propagation_loss", target_value=-0.1)
+
+    def test_search_bounds_must_be_ordered(self):
+        with pytest.raises(Exception):
+            InverseDesignInput(target_metric="confinement", target_value=0.5,
+                               width_range_um=(2.0, 1.0))
+
 
 class TestMaskGenInput:
     def test_valid_input(self):

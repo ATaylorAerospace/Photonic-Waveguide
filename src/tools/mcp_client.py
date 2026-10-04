@@ -2,11 +2,10 @@
 import asyncio
 import concurrent.futures
 import json
-import os
 
 from fastmcp import Client
 
-MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8000/mcp")
+from src.config.agent_config import MCP_SERVER_URL
 
 
 def _unwrap_result(result) -> dict:

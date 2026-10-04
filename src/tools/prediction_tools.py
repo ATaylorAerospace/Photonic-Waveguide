@@ -13,8 +13,9 @@ MODEL_PATH = MODEL_ARTIFACTS_PATH
 
 
 @lru_cache(maxsize=4)
-def _load_model(model_file: str):
-    """Load the model once per path — joblib.load per call costs ~50-100ms."""
+def _load_model(model_file: str, mtime: float):
+    """Load the model once per (path, mtime): a retrained file is picked up
+    without a restart, and joblib.load per call (~50-100ms) is avoided."""
     return joblib.load(model_file)
 
 
@@ -32,7 +33,7 @@ def predict_loss(
     model_file = os.path.join(MODEL_PATH, "xgboost_loss_model.joblib")
     if not os.path.exists(model_file):
         return {"error": "Model not trained yet. Run: python -m src.models.train"}
-    model = _load_model(model_file)
+    model = _load_model(model_file, os.path.getmtime(model_file))
     pol_enc = encode_categorical("polarization", polarization)
     dep_enc = encode_categorical("deposition_method", deposition_method)
     etch_enc = encode_categorical("etch_method", etch_method)

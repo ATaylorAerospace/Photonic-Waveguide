@@ -65,10 +65,10 @@ Designing high-performance silicon nitride photonic waveguides is a complex, ite
 | ⚙️ Optimization Agent | ✅ Live | Inverse design parameter optimization |
 | 📊 Analysis Agent | ✅ Live | Batch statistics and data exploration |
 | 🧪 Physics Tools | ✅ Live | Analytical photonic calculations via MCP server |
-| 📈 Visualization Tools | ✅ Live | Chart and plot generation |
-| 🧠 Knowledge Base | ✅ Live | RAG-based Q&A over waveguide dataset |
-| 💾 Session Memory | ✅ Live | Persistent user preferences via AgentCore Memory |
-| 🛡️ Safety Policies | ✅ Live | Guardrails for design feasibility and uncertainty |
+| 📈 Visualization Tools | 🚧 Stub | `plot_chart` returns chart metadata only; rendering not yet implemented |
+| 🧠 Knowledge Base | 🚧 Planned | RAG-based Q&A over waveguide dataset |
+| 💾 Session Memory | 🚧 Planned | Persistent user preferences via AgentCore Memory |
+| 🛡️ Safety Policies | 🚧 Planned | Guardrails for design feasibility and uncertainty |
 
 ---
 
@@ -199,7 +199,7 @@ When the prediction agent suggests a waveguide configuration (e.g., a 1.5µm wid
 
 ### Tool 2: `optimize_waveguide` (JAX)
 
-For rigorous, physics grounded inverse design to minimize insertion loss or hit a specific coupling efficiency, the MCP server runs **gradient descent** with **JAX automatic differentiation** on a differentiable analytic waveguide model (V-number based estimates of effective index, confinement, and loss). Instead of just querying the 90K dataset for the closest match, the agent mathematically "slides" down the loss gradient to find the optimal structural geometry for a user's constraints.
+For rigorous, physics grounded inverse design to minimize insertion loss or hit a specific coupling efficiency, the MCP server runs **gradient descent** with **JAX automatic differentiation** on a differentiable analytic waveguide model (V-number based estimates of effective index, confinement, and loss). Instead of just querying the 90K dataset for the closest match, the agent mathematically "slides" down the loss gradient to find the optimal structural geometry for a user's constraints. The result's `converged` flag reports whether the target was actually reached, so an unreachable target is never mistaken for an optimum.
 
 ### Tool 3: `generate_mask` (gdsfactory)
 
@@ -328,7 +328,9 @@ sin-photonic-mcp-agent/
 │   ├── __init__.py
 │   ├── agents/
 │   │   ├── __init__.py
-│   │   ├── photonic_agent.py       # Coordinator agent
+│   │   ├── photonic_agent.py       # Coordinator agent + REPL
+│   │   ├── model.py                # Shared Bedrock model factory
+│   │   ├── sub_agent_tools.py      # Sub-agents exposed as coordinator tools
 │   │   ├── prediction_agent.py     # ML inference sub-agent
 │   │   ├── optimization_agent.py   # Design optimization sub-agent
 │   │   ├── analysis_agent.py       # Data analysis sub-agent
@@ -374,12 +376,16 @@ sin-photonic-mcp-agent/
 │
 ├── tests/
 │   ├── test_tools.py               # Unit tests for tools
+│   ├── test_agents.py              # Coordinator wiring (direct + sub-agent tools)
+│   ├── test_predictions.py         # ML model accuracy tests (placeholder)
 │   ├── test_data_tools.py          # Dataset query tools (in-memory dataset)
 │   ├── test_storage.py             # Cache hashing and storage fallbacks
 │   ├── test_mcp_server.py          # MCP server schema tests
+│   ├── test_inverse_design.py      # JAX optimizer (needs jax)
 │   ├── test_mode_solver.py         # Eigenmode solver (needs modesolverpy)
 │   ├── test_mask_gen.py            # GDSII generation (needs gdsfactory)
 │   ├── test_download_dataset.py    # Download script path handling
+│   ├── test_eval_scenarios.py      # Keeps evals/ in sync with tool schemas
 │   ├── test_mcp_integration.py     # MCP integration tests (needs running server)
 │   └── evals/
 │       ├── eval_config.yaml        # AgentCore Evaluations config
@@ -455,7 +461,8 @@ agent("Show me the yield statistics for BATCH_12. "
 ```bash
 # Run the FastMCP server (must be running before the agent)
 python -m mcp_server.server
-# Server starts on http://0.0.0.0:8000/mcp
+# Listens on http://127.0.0.1:8000/mcp by default (no authentication);
+# set MCP_SERVER_HOST=0.0.0.0 to expose it beyond the local machine.
 ```
 
 ### Deploy to AgentCore Runtime
@@ -487,6 +494,8 @@ export BEDROCK_MODEL_ID=us.anthropic.claude-sonnet-4-20250514-v1:0
 export DATASET_PATH=data/SiN_Photonic_Waveguide_Loss_Efficiency.csv
 export MODEL_ARTIFACTS_PATH=models/
 export MCP_SERVER_URL=http://localhost:8000/mcp
+export MCP_SERVER_HOST=127.0.0.1   # server bind address; 0.0.0.0 to expose
+export MCP_SERVER_PORT=8000
 
 # Hybrid Storage Architecture (defaults match scripts/setup_aws.sh with ENV=dev)
 export S3_BUCKET_NAME=photonic-waveguide-data--usw2-az1--x-s3
@@ -507,6 +516,14 @@ export S3_TABLES_TABLE=waveguide_measurements
 * **Mask generator on gdsfactory 9:** the generic PDK is activated automatically, each design gets its own layout cell (repeat calls no longer fail on a duplicate cell name), and grating couplers attach directly to the waveguide instead of to the inverse-taper tip.
 * **Infrastructure that matches the code:** the CloudFormation IAM role grants the `s3express:CreateSession` and `dynamodb:DescribeTable` permissions the server actually needs, config defaults use the `-dev` resource names the setup script provisions, and the setup script uploads the Parquet copy the Glue table points at.
 * **Packaging and scripts:** `pip install -e .` now pulls in `pyarrow` (imported unconditionally by the storage layer), `pytest tests/` works from a checkout, `DATASET_PATH` / `MODEL_ARTIFACTS_PATH` are honoured everywhere, `data/download_dataset.py` works from any directory, and the Docker image serves the MCP server by default with a `.dockerignore` keeping data, models and docs out of the build context.
+
+### Efficiency and robustness
+
+* **Inverse design compiles once per metric:** the JIT-compiled loss/gradient function takes the target, wavelength and bounds as traced arguments, so new requests no longer pay a fresh compilation; results carry a `converged` flag and targets outside the model's range (e.g. a confinement above 1) are rejected up front.
+* **Cheaper dataset access:** a failed S3 attempt is remembered for five minutes instead of being retried (and logged) on every call, column reads stop at the requested row limit instead of reading whole columns, and `query_low_loss_waveguides` reads only the rows it returns.
+* **Agents as tools:** the three specialist sub-agents now run on the configured Bedrock model and are exposed to the coordinator as `ask_prediction_agent`, `ask_optimization_agent` and `ask_analysis_agent`; agent-side settings live in one place (`src/config/agent_config.py`) and tool defaults come from `mcp_server/config.py`.
+* **REPL and model cache:** responses are printed once (the streaming callback is disabled), Ctrl-D exits cleanly, and the XGBoost model cache is keyed on the file's modification time so a retrained model is picked up without a restart.
+* **Safer default bind:** the MCP server listens on `127.0.0.1` unless `MCP_SERVER_HOST` says otherwise (the Docker image sets `0.0.0.0`).
 
 ### Earlier round
 
