@@ -1,10 +1,10 @@
 """Dataset loading, filtering, and query tools."""
 import logging
-import os
 import pandas as pd
 from strands import tool
 from mcp_server.storage.s3_dataset import S3DatasetReader
 from mcp_server.storage.s3_tables import S3TablesQuery
+from src.config.agent_config import DATASET_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +19,7 @@ def _load_dataset() -> pd.DataFrame:
         try:
             _df_cache = _dataset_reader.to_pandas()
         except FileNotFoundError:
-            csv_path = os.getenv("DATASET_PATH", "data/SiN_Photonic_Waveguide_Loss_Efficiency.csv")
-            _df_cache = pd.read_csv(csv_path)
+            _df_cache = pd.read_csv(DATASET_PATH)
     return _df_cache
 
 

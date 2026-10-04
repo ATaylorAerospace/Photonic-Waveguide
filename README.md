@@ -8,7 +8,7 @@
 [![MCP](https://img.shields.io/badge/MCP-FastMCP%20Server-green.svg)](https://github.com/jlowin/fastmcp)
 [![Contact A Taylor](https://img.shields.io/badge/Contact-A%20Taylor-brightgreen.svg?logo=mail.ru&logoColor=white)](https://ataylor.getform.com/5w8wz)
 
-An **Agentic AI Application** for analyzing, predicting, and optimizing Silicon Nitride (Si₃N₄) photonic waveguide performance. Powered by **deterministic physics tools** served via a **FastMCP server** — using **modesolverpy**, **SAX (JAX)**, and **gdsfactory** — orchestrated by **AWS Bedrock Agents**, **Strands Agents SDK**, and **Amazon Bedrock AgentCore** for production-grade agentic infrastructure.
+An **Agentic AI Application** for analyzing, predicting, and optimizing Silicon Nitride (Si₃N₄) photonic waveguide performance. Powered by **deterministic physics tools** served via a **FastMCP server** — using **modesolverpy**, **JAX**, and **gdsfactory** — orchestrated by **AWS Bedrock Agents**, **Strands Agents SDK**, and **Amazon Bedrock AgentCore** for production-grade agentic infrastructure.
 
 > 🚧 **Status:** Core agents stable · MCP physics server operational · AgentCore deployment ready
 
@@ -31,7 +31,7 @@ Designing high-performance silicon nitride photonic waveguides is a complex, ite
 **SiN Photonic Waveguide MCP Agent** replaces foundation model fine-tuning with **deterministic physics solvers** served via a FastMCP server, complemented by ML models trained on 90,000 waveguide configurations:
 
 * **🔬 Solve waveguide modes** — compute n_eff, optical confinement, mode field diameter, and group index using fully vectorial eigenmode expansion (modesolverpy) in milliseconds.
-* **⚡ Inverse design** — find optimal waveguide geometry via gradient-based optimization using automatic differentiation (SAX + JAX), not brute-force search.
+* **⚡ Inverse design** — find optimal waveguide geometry via gradient-based optimization using automatic differentiation (JAX), not brute-force search.
 * **🏭 Generate fabrication masks** — produce foundry-ready GDSII layout files automatically using gdsfactory, with inverse-taper edge couplers or grating couplers for I/O.
 * **🔮 Fast-pass ML predictions** — use XGBoost models trained on 90K configurations for instant first-pass propagation loss estimates.
 * **📊 Analyze fabrication data** — compare batches, identify yield issues, and uncover parameter correlations from the dataset.
@@ -59,7 +59,7 @@ Designing high-performance silicon nitride photonic waveguides is a complex, ite
 | Module | Status | Description |
 | --- | --- | --- |
 | 🔬 Mode Solver Tool | ✅ Live | modesolverpy eigenmode expansion via MCP |
-| ⚡ Inverse Design Tool | ✅ Live | SAX + JAX gradient-based optimization via MCP |
+| ⚡ Inverse Design Tool | ✅ Live | JAX gradient-based optimization via MCP |
 | 🏭 Mask Generation Tool | ✅ Live | gdsfactory GDSII layout generation via MCP |
 | 🔮 Prediction Agent | ✅ Live | XGBoost fast-pass loss and efficiency prediction |
 | ⚙️ Optimization Agent | ✅ Live | Inverse design parameter optimization |
@@ -85,8 +85,8 @@ Designing high-performance silicon nitride photonic waveguides is a complex, ite
 
 ```bash
 # Clone the repository
-git clone https://github.com/ATaylorAerospace/Photonic-Waveguide-MCP.git
-cd Photonic-Waveguide-MCP
+git clone https://github.com/ATaylorAerospace/Photonic-Waveguide.git
+cd Photonic-Waveguide
 
 # Create virtual environment
 python -m venv .venv
@@ -95,8 +95,8 @@ source .venv/bin/activate
 # Install all dependencies (agent + physics + MCP)
 pip install -r requirements.txt
 
-# --- OR install modular groups ---
-pip install -e ".[mcp,physics]"
+# --- OR install the package with optional groups ---
+pip install -e ".[physics,storage,dev]"
 
 # Download the dataset from HuggingFace (used for batch analysis & RAG)
 python data/download_dataset.py
@@ -126,7 +126,7 @@ pytest tests/
 | 🤖 Agent Framework | Strands Agents SDK (Python) |
 | 🧠 LLM | Anthropic Sonnet 4 via Amazon Bedrock |
 | 🔬 Mode Solving | modesolverpy (Fully Vectorial EME) |
-| ⚡ Inverse Design | SAX + JAX (Autodiff Gradient Descent) |
+| ⚡ Inverse Design | JAX (Autodiff Gradient Descent) |
 | 🏭 Mask Generation | gdsfactory + gdstk (GDSII Layout) |
 | 🔌 Tool Protocol | FastMCP (Model Context Protocol) |
 | ☁️ Infrastructure | Amazon Bedrock AgentCore |
@@ -170,7 +170,7 @@ The application uses a **physics first MCP architecture** where deterministic Py
 │  │solve_waveguide_│ │optimize_     │ │generate_      │     │
 │  │mode            │ │waveguide     │ │mask           │     │
 │  │                │ │              │ │               │     │
-│  │ modesolverpy   │ │ SAX + JAX    │ │ gdsfactory    │     │
+│  │ modesolverpy   │ │ JAX autodiff │ │ gdsfactory    │     │
 │  │ (Eigenmode EME)│ │ (Autodiff    │ │ (GDSII Layout)│     │
 │  │                │ │  Gradient    │ │               │     │
 │  │                │ │  Descent)    │ │               │     │
@@ -185,7 +185,7 @@ The application uses a **physics first MCP architecture** where deterministic Py
 
 **🔬 Layer 1 — Strands Agents SDK:** Code-level agent logic with the `@tool` decorator, multi-agent orchestration using the "Agents as Tools" pattern, and model-agnostic LLM access. Tools call the MCP server for physics computations.
 
-**⚡ Layer 2 — FastMCP Physics Server:** Three deterministic physics tools — **modesolverpy** for eigenmode expansion, **SAX + JAX** for gradient-based inverse design, and **gdsfactory** for GDSII mask generation — served via a single FastMCP server.
+**⚡ Layer 2 — FastMCP Physics Server:** Three deterministic physics tools — **modesolverpy** for eigenmode expansion, **JAX** for gradient-based inverse design, and **gdsfactory** for GDSII mask generation — served via a single FastMCP server.
 
 **☁️ Layer 3 — Amazon Bedrock AgentCore:** Production infrastructure — serverless Runtime, persistent Memory, MCP-based Gateway, natural-language Policy guardrails, Cognito Identity, and CloudWatch Observability.
 
@@ -197,9 +197,9 @@ The application uses a **physics first MCP architecture** where deterministic Py
 
 When the prediction agent suggests a waveguide configuration (e.g., a 1.5µm wide, 400nm tall SiN core with SiO₂ cladding at 1550nm TE), the MCP server passes these exact parameters to modesolverpy. It runs a **fully vectorial eigenmode expansion (EME)** to calculate the effective refractive index, optical confinement factor, and mode field diameter. This allows the agent to mathematically validate its ML-driven propagation loss predictions against actual wave optics in milliseconds without consuming massive compute.
 
-### Tool 2: `optimize_waveguide` (SAX + JAX)
+### Tool 2: `optimize_waveguide` (JAX)
 
-For rigorous, physics grounded inverse design to minimize insertion loss or hit a specific coupling efficiency, SAX is a photonic circuit solver built natively on Google's JAX. Because it supports **automatic differentiation**, the MCP server uses it to run **gradient descent optimization** on waveguide parameters in real-time. Instead of just querying the 90K dataset for the closest match, the agent uses SAX to mathematically "slide" down the gradient to find the absolute optimal structural geometry for a user's constraints.
+For rigorous, physics grounded inverse design to minimize insertion loss or hit a specific coupling efficiency, the MCP server runs **gradient descent** with **JAX automatic differentiation** on a differentiable analytic waveguide model (V-number based estimates of effective index, confinement, and loss). Instead of just querying the 90K dataset for the closest match, the agent mathematically "slides" down the loss gradient to find the optimal structural geometry for a user's constraints.
 
 ### Tool 3: `generate_mask` (gdsfactory)
 
@@ -216,7 +216,7 @@ For a high-precision photonics MCP server, a single database is insufficient. Th
 The `SiN-photonic-waveguide-loss-efficiency` dataset is stored in **Apache Parquet** format on **S3 Express One Zone**.
 
 * **Why S3 Express One Zone:** Built for AI/ML workloads, offering 10x faster access and single-digit millisecond latency vs standard S3. This is crucial when the MCP server needs to stream Parquet chunks into a JAX-based inverse design loop.
-* **Why Parquet:** Enables columnar reads — SAX can grab only waveguide widths and heights without loading the entire 90K rows of metadata. Dramatically reduces memory footprint and I/O.
+* **Why Parquet:** Enables columnar reads — the analysis tools can grab only waveguide widths and heights without loading the entire 90K rows of metadata. Dramatically reduces memory footprint and I/O.
 * **Cost Efficiency:** While storage is slightly higher than S3 Standard, request costs are 50% lower — saving money when `photonic_agent.py` frequently queries the dataset for global search.
 
 ```python
@@ -238,7 +238,7 @@ Individual results from `modesolverpy` runs and `gdsfactory` layout paths are st
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  DynamoDB Table: photonic-simulation-cache               │
+│  DynamoDB Table: photonic-simulation-cache-dev           │
 │                                                          │
 │  PK: geometry_hash (SHA-256 of sorted params)           │
 │  SK: "MODE#1550nm#TE" | "OPTIM#prop_loss#0.2" | "GDS"  │
@@ -281,7 +281,7 @@ low_loss = dataset.to_table(
 │     └─ geometry_hash → hit? → return cached result           │
 │                                                              │
 │  2. CACHE MISS → RUN PHYSICS                                 │
-│     ├─ modesolverpy / SAX / gdsfactory                      │
+│     ├─ modesolverpy / JAX / gdsfactory                      │
 │     └─ WRITE result to DynamoDB cache                        │
 │                                                              │
 │  3. DATASET QUERIES (S3 Express One Zone)                    │
@@ -299,6 +299,7 @@ sin-photonic-mcp-agent/
 ├── README.md                       # Project documentation
 ├── pyproject.toml                  # Python project config
 ├── requirements.txt                # Python dependencies
+├── .dockerignore                   # Keeps data/models/docs out of the image
 │
 ├── mcp_server/
 │   ├── __init__.py
@@ -307,7 +308,8 @@ sin-photonic-mcp-agent/
 │   ├── tools/
 │   │   ├── __init__.py
 │   │   ├── mode_solver.py          # modesolverpy eigenmode solver
-│   │   ├── inverse_design.py       # SAX + JAX inverse design engine
+│   │   ├── _modesolverpy_compat.py # NumPy 2 / SciPy shims for modesolverpy
+│   │   ├── inverse_design.py       # JAX inverse design engine
 │   │   └── mask_gen.py             # gdsfactory GDSII generation
 │   ├── storage/
 │   │   ├── __init__.py
@@ -333,6 +335,7 @@ sin-photonic-mcp-agent/
 │   │   └── system_prompts.py       # All agent system prompts
 │   ├── tools/
 │   │   ├── __init__.py
+│   │   ├── mcp_client.py           # Event-loop-safe MCP client helper
 │   │   ├── data_tools.py           # Dataset loading and filtering
 │   │   ├── prediction_tools.py     # XGBoost inference tools
 │   │   ├── optimization_tools.py   # MCP client → optimize_waveguide
@@ -371,10 +374,13 @@ sin-photonic-mcp-agent/
 │
 ├── tests/
 │   ├── test_tools.py               # Unit tests for tools
-│   ├── test_agents.py              # Agent integration tests
-│   ├── test_predictions.py         # ML model accuracy tests
-│   ├── test_mcp_server.py          # MCP server unit tests
-│   ├── test_mcp_integration.py     # MCP integration tests
+│   ├── test_data_tools.py          # Dataset query tools (in-memory dataset)
+│   ├── test_storage.py             # Cache hashing and storage fallbacks
+│   ├── test_mcp_server.py          # MCP server schema tests
+│   ├── test_mode_solver.py         # Eigenmode solver (needs modesolverpy)
+│   ├── test_mask_gen.py            # GDSII generation (needs gdsfactory)
+│   ├── test_download_dataset.py    # Download script path handling
+│   ├── test_mcp_integration.py     # MCP integration tests (needs running server)
 │   └── evals/
 │       ├── eval_config.yaml        # AgentCore Evaluations config
 │       └── eval_scenarios.json     # Test scenarios
@@ -482,11 +488,11 @@ export DATASET_PATH=data/SiN_Photonic_Waveguide_Loss_Efficiency.csv
 export MODEL_ARTIFACTS_PATH=models/
 export MCP_SERVER_URL=http://localhost:8000/mcp
 
-# Hybrid Storage Architecture
+# Hybrid Storage Architecture (defaults match scripts/setup_aws.sh with ENV=dev)
 export S3_BUCKET_NAME=photonic-waveguide-data--usw2-az1--x-s3
 export S3_DATASET_KEY=dataset.parquet
-export DYNAMODB_TABLE_NAME=photonic-simulation-cache
-export S3_TABLES_DATABASE=photonic_waveguide_db
+export DYNAMODB_TABLE_NAME=photonic-simulation-cache-dev
+export S3_TABLES_DATABASE=photonic_waveguide_db_dev
 export S3_TABLES_TABLE=waveguide_measurements
 ```
 
@@ -494,13 +500,23 @@ export S3_TABLES_TABLE=waveguide_measurements
 
 ## 🔧 Recent Fixes & Performance Improvements
 
+### Physics tools on a fresh install
+
+* **Compatible dependency set:** modesolverpy 0.4.4 predates NumPy 2 and modern SciPy, while gdsfactory's dependencies require them. `mcp_server/tools/_modesolverpy_compat.py` restores the handful of removed APIs modesolverpy relies on, so all three physics tools now run side by side on current NumPy/SciPy/JAX/gdsfactory. The unused `sax` dependency (whose NumPy requirement conflicted with modesolverpy) was dropped.
+* **Mode solver correctness:** confinement and mode-field diameter are computed on the solver's cell-centre grids with the field oriented `[y, x]`; a `polarization="TM"` request now returns the lowest-order quasi-TM mode (previously always the fundamental TE mode), and the result reports the mode's TE fraction.
+* **Mask generator on gdsfactory 9:** the generic PDK is activated automatically, each design gets its own layout cell (repeat calls no longer fail on a duplicate cell name), and grating couplers attach directly to the waveguide instead of to the inverse-taper tip.
+* **Infrastructure that matches the code:** the CloudFormation IAM role grants the `s3express:CreateSession` and `dynamodb:DescribeTable` permissions the server actually needs, config defaults use the `-dev` resource names the setup script provisions, and the setup script uploads the Parquet copy the Glue table points at.
+* **Packaging and scripts:** `pip install -e .` now pulls in `pyarrow` (imported unconditionally by the storage layer), `pytest tests/` works from a checkout, `DATASET_PATH` / `MODEL_ARTIFACTS_PATH` are honoured everywhere, `data/download_dataset.py` works from any directory, and the Docker image serves the MCP server by default with a `.dockerignore` keeping data, models and docs out of the build context.
+
+### Earlier round
+
 * **Correct mask caching:** generated GDS filenames now carry a geometry hash, so designs sharing a filename can no longer overwrite each other while the DynamoDB cache serves a stale path. `output_filename` is validated as a bare filename (no path separators) to prevent writes outside the output directory.
 * **Honest mask API:** unused `bend_radius_um` and `routing` parameters were removed from `generate_mask` (layouts are straight sections with tapers/couplers); `num_bends` was dropped from the output.
 * **Event-loop-safe MCP clients:** agent tools now call the physics server through a shared helper (`src/tools/mcp_client.py`) that works inside or outside a running asyncio loop and unwraps MCP results into plain dicts.
 * **Faster inverse design:** the optimizer uses a JIT-compiled `jax.value_and_grad` in normalized coordinates — one model evaluation per iteration and no hand-tuned per-parameter gradient scaling.
 * **Faster predictions:** the XGBoost model is loaded once and cached instead of being re-read from disk on every call.
 * **Leaner data queries:** S3 Tables reads stop as soon as the row limit is reached, aggregations run natively in Arrow, and `read_dataset_columns` is capped (default 50 rows) so tools can't dump the full 90K-row dataset into the agent context.
-* **Robust mode analysis:** the confinement calculation orients the mode field deterministically from the solver's [x, y] convention instead of guessing from array shape (which failed on square grids).
+* **Robust mode analysis:** the confinement calculation no longer guesses the field orientation from the array shape (superseded by the cell-centre grid handling above).
 * **Non-blocking startup & visible errors:** the DynamoDB cache connects lazily on first use instead of at import, and cache/storage fallbacks are logged instead of silently swallowed. Tool inputs are validated before cache lookups, so invalid or unnormalized requests can't fragment or poison the cache.
 
 ---

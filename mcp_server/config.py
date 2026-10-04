@@ -35,6 +35,8 @@ DEFAULT_LAYER = (1, 0)
 GDS_OUTPUT_DIR = "output/gds"
 
 # --- Hybrid Storage Architecture ---
+# Resource names below match what scripts/setup_aws.sh provisions for ENV=dev;
+# override them through the environment for other environments.
 # Layer 1: S3 Express One Zone (Bulk Parquet Data)
 S3_BUCKET_NAME = os.getenv(
     "S3_BUCKET_NAME",
@@ -43,13 +45,15 @@ S3_BUCKET_NAME = os.getenv(
 S3_DATASET_KEY = os.getenv("S3_DATASET_KEY", "dataset.parquet")
 S3_REGION = os.getenv("AWS_REGION", "us-west-2")
 PARQUET_LOCAL_CACHE_DIR = "data/parquet_cache"
+# Local CSV used when neither S3 nor the local Parquet cache is available.
+DATASET_PATH = os.getenv("DATASET_PATH", "data/SiN_Photonic_Waveguide_Loss_Efficiency.csv")
 
 # Layer 2: DynamoDB (Simulation Cache)
-DYNAMODB_TABLE_NAME = os.getenv("DYNAMODB_TABLE_NAME", "photonic-simulation-cache")
+DYNAMODB_TABLE_NAME = os.getenv("DYNAMODB_TABLE_NAME", "photonic-simulation-cache-dev")
 DYNAMODB_REGION = os.getenv("AWS_REGION", "us-west-2")
 CACHE_TTL_DAYS = 30  # Cache entries expire after 30 days
 
 # Layer 3: S3 Tables (SQL over Parquet)
 S3_TABLES_BUCKET = S3_BUCKET_NAME  # Same bucket, managed table layer
-S3_TABLES_DATABASE = os.getenv("S3_TABLES_DATABASE", "photonic_waveguide_db")
+S3_TABLES_DATABASE = os.getenv("S3_TABLES_DATABASE", "photonic_waveguide_db_dev")
 S3_TABLES_TABLE = os.getenv("S3_TABLES_TABLE", "waveguide_measurements")

@@ -16,8 +16,8 @@ services:
       - AWS_REGION=${AWS_REGION:-us-west-2}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME:-photonic-waveguide-data--usw2-az1--x-s3}
       - S3_DATASET_KEY=${S3_DATASET_KEY:-dataset.parquet}
-      - DYNAMODB_TABLE_NAME=${DYNAMODB_TABLE_NAME:-photonic-simulation-cache}
-      - S3_TABLES_DATABASE=${S3_TABLES_DATABASE:-photonic_waveguide_db}
+      - DYNAMODB_TABLE_NAME=${DYNAMODB_TABLE_NAME:-photonic-simulation-cache-dev}
+      - S3_TABLES_DATABASE=${S3_TABLES_DATABASE:-photonic_waveguide_db_dev}
       - S3_TABLES_TABLE=${S3_TABLES_TABLE:-waveguide_measurements}
 
   agent:
@@ -27,6 +27,11 @@ services:
     command: python -m src.agents.photonic_agent
     depends_on:
       - mcp-server
+    volumes:
+      # Local dataset fallback and trained XGBoost model are excluded from the
+      # image (.dockerignore), so mount them for the agent's data tools.
+      - ../../data:/app/data
+      - ../../models:/app/models
     environment:
       - MCP_SERVER_URL=http://mcp-server:8000/mcp
       - AWS_REGION=${AWS_REGION:-us-west-2}

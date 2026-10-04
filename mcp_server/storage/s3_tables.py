@@ -6,7 +6,7 @@ import pyarrow.compute as pc
 import pyarrow as pa
 import pandas as pd
 
-from mcp_server.config import S3_BUCKET_NAME, S3_REGION
+from mcp_server.config import S3_BUCKET_NAME, S3_REGION, DATASET_PATH
 
 
 class S3TablesQuery:
@@ -16,7 +16,7 @@ class S3TablesQuery:
         self,
         bucket: str = S3_BUCKET_NAME,
         region: str = S3_REGION,
-        local_fallback: str = "data/SiN_Photonic_Waveguide_Loss_Efficiency.csv",
+        local_fallback: str = DATASET_PATH,
     ):
         self.s3_uri = f"s3://{bucket}/"
         self.region = region

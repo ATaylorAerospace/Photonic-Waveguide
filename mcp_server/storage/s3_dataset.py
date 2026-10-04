@@ -11,6 +11,7 @@ from mcp_server.config import (
     S3_DATASET_KEY,
     S3_REGION,
     PARQUET_LOCAL_CACHE_DIR,
+    DATASET_PATH,
 )
 
 
@@ -22,7 +23,7 @@ class S3DatasetReader:
         bucket: str = S3_BUCKET_NAME,
         key: str = S3_DATASET_KEY,
         region: str = S3_REGION,
-        local_fallback: str = "data/SiN_Photonic_Waveguide_Loss_Efficiency.csv",
+        local_fallback: str = DATASET_PATH,
     ):
         self.s3_uri = f"s3://{bucket}/{key}"
         self.region = region

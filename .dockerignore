@@ -1,0 +1,25 @@
+# Keep the image build context to runtime code: no VCS history, docs,
+# notebooks, tests, or local data/model artifacts (mounted as volumes instead).
+.git
+.gitignore
+.github
+docs/
+notebooks/
+tests/
+infrastructure/
+scripts/
+data/*.csv
+data/parquet_cache/
+models/
+output/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+.env
+.DS_Store
+.vscode/
+.idea/

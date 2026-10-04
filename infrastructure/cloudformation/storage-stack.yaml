@@ -14,6 +14,12 @@ Parameters:
     Type: Number
     Default: 30
     Description: DynamoDB cache TTL in days
+  ExpressBucketName:
+    Type: String
+    Default: "photonic-waveguide-data--usw2-az1--x-s3"
+    Description: >
+      S3 Express One Zone directory bucket created by scripts/setup_aws.sh
+      (its availability-zone suffix must belong to the stack's region).
 
 Resources:
   # =========================================================
@@ -85,6 +91,9 @@ Resources:
   # =========================================================
   # Layer 3: S3 Tables — SQL over Parquet
   # =========================================================
+  # The Glue catalog reads the copy of the Parquet file that
+  # scripts/setup_aws.sh uploads to the standard DatasetBucket under
+  # dataset/; the MCP server itself reads the S3 Express copy directly.
   GlueDatabase:
     Type: AWS::Glue::Database
     Properties:
@@ -162,19 +171,25 @@ Resources:
                 Action:
                   - s3:GetObject
                   - s3:ListBucket
-                  - s3express:GetObject
-                  - s3express:ListBucket
                 Resource:
                   - !Sub "arn:aws:s3:::${DatasetBucket}"
                   - !Sub "arn:aws:s3:::${DatasetBucket}/*"
-                  - "arn:aws:s3express:us-west-2:*:bucket/photonic-waveguide-data--usw2-az1--x-s3"
-                  - "arn:aws:s3express:us-west-2:*:bucket/photonic-waveguide-data--usw2-az1--x-s3/*"
+              # Every object-level operation on a directory bucket is
+              # authorized through a session, so CreateSession on the bucket
+              # is the (only) permission reads need.
+              - Effect: Allow
+                Action:
+                  - s3express:CreateSession
+                Resource:
+                  - !Sub "arn:aws:s3express:${AWS::Region}:${AWS::AccountId}:bucket/${ExpressBucketName}"
         - PolicyName: DynamoCacheAccess
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action:
+                  # DescribeTable backs the cache's connection probe.
+                  - dynamodb:DescribeTable
                   - dynamodb:GetItem
                   - dynamodb:PutItem
                   - dynamodb:DeleteItem

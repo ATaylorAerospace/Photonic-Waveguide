@@ -6,9 +6,10 @@ import joblib
 import numpy as np
 from strands import tool
 
+from src.config.agent_config import MODEL_ARTIFACTS_PATH
 from src.models.features import encode_categorical
 
-MODEL_PATH = os.getenv("MODEL_ARTIFACTS_PATH", "models/")
+MODEL_PATH = MODEL_ARTIFACTS_PATH
 
 
 @lru_cache(maxsize=4)
