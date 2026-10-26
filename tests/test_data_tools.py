@@ -6,7 +6,7 @@ import pytest
 
 pytest.importorskip("strands")
 
-from src.tools import data_tools  # noqa: E402
+from src.tools import data_tools
 
 
 @pytest.fixture
@@ -47,3 +47,25 @@ class TestQueryDatasetGroupBy:
         rows = data_tools.query_dataset(filters={"deposition_method": "LPCVD"}, limit=1)
         assert len(rows) == 1
         assert rows[0]["deposition_method"] == "LPCVD"
+
+    def test_columns_without_group_by_key_still_groups(self, dataset):
+        rows = data_tools.query_dataset(
+            columns=["propagation_loss_dB_cm"],
+            group_by="deposition_method",
+        )
+        by_method = {r["deposition_method"]: r for r in rows}
+        assert set(by_method.keys()) == {"LPCVD", "PECVD"}
+        assert by_method["LPCVD"]["propagation_loss_dB_cm"] == pytest.approx(0.35)
+        assert "width_um" not in by_method["LPCVD"]
+
+    def test_columns_without_group_by_key_local_fallback(self, dataset, monkeypatch):
+        def fail(*args, **kwargs):
+            raise RuntimeError("S3 Tables unavailable")
+        monkeypatch.setattr(data_tools._s3_tables, "query", fail)
+        rows = data_tools.query_dataset(
+            columns=["propagation_loss_dB_cm"],
+            group_by="deposition_method",
+        )
+        by_method = {r["deposition_method"]: r for r in rows}
+        assert set(by_method.keys()) == {"LPCVD", "PECVD"}
+        assert by_method["PECVD"]["propagation_loss_dB_cm"] == pytest.approx(0.2)

@@ -3,11 +3,11 @@ import os
 from functools import lru_cache
 
 import joblib
-import numpy as np
+import pandas as pd
 from strands import tool
 
 from src.config.agent_config import MODEL_ARTIFACTS_PATH
-from src.models.features import encode_categorical
+from src.models.features import FEATURE_COLUMNS, encode_categorical
 
 MODEL_PATH = MODEL_ARTIFACTS_PATH
 
@@ -38,10 +38,10 @@ def predict_loss(
     dep_enc = encode_categorical("deposition_method", deposition_method)
     etch_enc = encode_categorical("etch_method", etch_method)
     clad_enc = encode_categorical("cladding_material", cladding)
-    features = np.array([[
+    features = pd.DataFrame([[
         width_um, height_nm, wavelength_nm, pol_enc,
         dep_enc, etch_enc, clad_enc, anneal_temp_c, anneal_hours,
-    ]])
+    ]], columns=FEATURE_COLUMNS)
     prediction = model.predict(features)
     return {
         "predicted_propagation_loss_dB_cm": float(prediction[0]),

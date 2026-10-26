@@ -31,4 +31,24 @@ CATEGORICAL_ENCODINGS = {
 
 def encode_categorical(column: str, value: str) -> int:
     """Encode a categorical value with the shared fixed mapping."""
-    return CATEGORICAL_ENCODINGS[column].get(str(value), 0)
+    return CATEGORICAL_ENCODINGS[column].get(str(value).strip(), 0)
+
+
+def prepare_features_and_target(df):
+    """Canonicalize column names and encode categorical features for training/evaluation.
+
+    Returns `(X, y, missing_columns)` where `X` and `y` are `None` if any required
+    columns are missing.
+    """
+    canonical = {c.lower(): c for c in FEATURE_COLUMNS + [TARGET_COLUMN]}
+    df = df.rename(columns={c: canonical[c.lower()] for c in df.columns if c.lower() in canonical})
+
+    missing = [c for c in FEATURE_COLUMNS + [TARGET_COLUMN] if c not in df.columns]
+    if missing:
+        return None, None, missing
+
+    df = df.copy()
+    for col, mapping in CATEGORICAL_ENCODINGS.items():
+        df[col] = df[col].astype(str).str.strip().map(mapping).fillna(0).astype(int)
+
+    return df[FEATURE_COLUMNS], df[TARGET_COLUMN], []

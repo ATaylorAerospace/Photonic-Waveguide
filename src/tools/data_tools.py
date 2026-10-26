@@ -1,7 +1,9 @@
 """Dataset loading, filtering, and query tools."""
 import logging
+
 import pandas as pd
 from strands import tool
+
 from mcp_server.storage.s3_dataset import S3DatasetReader
 from mcp_server.storage.s3_tables import S3TablesQuery
 from src.config.agent_config import DATASET_PATH
@@ -27,19 +29,24 @@ def _load_dataset() -> pd.DataFrame:
 def query_dataset(
     filters: dict | None = None, columns: list[str] | None = None,
     group_by: str | None = None, agg_func: str = "mean", limit: int = 50,
-) -> dict:
+) -> list[dict]:
     """Query the 90K-row waveguide dataset with optional filtering and aggregation.
 
     Uses S3 Tables with predicate pushdown when available — filters are evaluated
     at the storage layer so only matching rows are read into memory.
     """
+    read_columns = (
+        list(dict.fromkeys([*columns, group_by]))
+        if (columns is not None and group_by is not None)
+        else columns
+    )
     try:
         import pyarrow.dataset as ds
         filter_expr = None
         if filters:
             exprs = []
             for col, val in filters.items():
-                if isinstance(val, (int, float)):
+                if isinstance(val, (int, float)) and not isinstance(val, bool):
                     exprs.append(ds.field(col) == val)
                 else:
                     exprs.append(ds.field(col) == str(val))
@@ -50,7 +57,7 @@ def query_dataset(
         # When aggregating, pull all matching rows so group statistics cover the
         # full dataset — the row limit applies to the aggregated output only.
         query_limit = 100000 if group_by else limit
-        df = _s3_tables.query(filter_expr=filter_expr, columns=columns, limit=query_limit)
+        df = _s3_tables.query(filter_expr=filter_expr, columns=read_columns, limit=query_limit)
         if group_by and group_by in df.columns:
             # The key column must not be aggregated too, or reset_index() fails
             # trying to insert it twice.
@@ -64,8 +71,8 @@ def query_dataset(
         for col, val in filters.items():
             if col in df.columns:
                 df = df[df[col] == val]
-    if columns:
-        df = df[[c for c in columns if c in df.columns]]
+    if read_columns:
+        df = df[[c for c in read_columns if c in df.columns]]
     if group_by and group_by in df.columns:
         numeric_cols = [c for c in df.select_dtypes(include="number").columns if c != group_by]
         df = df.groupby(group_by)[numeric_cols].agg(agg_func).reset_index()
@@ -78,7 +85,7 @@ def query_low_loss_waveguides(
     polarization: str = "TE",
     columns: list[str] | None = None,
     limit: int = 50,
-) -> dict:
+) -> list[dict]:
     """Find waveguides below a propagation loss threshold."""
     try:
         df = _s3_tables.query_low_loss(
@@ -101,7 +108,7 @@ def query_low_loss_waveguides(
 
 
 @tool
-def read_dataset_columns(columns: list[str], limit: int = 50) -> dict:
+def read_dataset_columns(columns: list[str], limit: int = 50) -> list[dict]:
     """Read specific columns from the dataset using Parquet columnar reads.
 
     Returns at most `limit` rows — the full dataset has ~90K rows, far more

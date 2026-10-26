@@ -9,27 +9,28 @@ Run with: python -m mcp_server.server
 import os
 
 from fastmcp import FastMCP
+
 from mcp_server.config import (
+    DEFAULT_HEIGHT_RANGE_NM,
+    DEFAULT_LAYER,
+    DEFAULT_LEARNING_RATE,
+    DEFAULT_MAX_ITERATIONS,
+    DEFAULT_POLARIZATION,
+    DEFAULT_TAPER_LENGTH_UM,
+    DEFAULT_WAVELENGTH_NM,
+    DEFAULT_WIDTH_RANGE_UM,
     MCP_SERVER_HOST,
     MCP_SERVER_PORT,
-    DEFAULT_WAVELENGTH_NM,
-    DEFAULT_POLARIZATION,
-    DEFAULT_MAX_ITERATIONS,
-    DEFAULT_LEARNING_RATE,
-    DEFAULT_WIDTH_RANGE_UM,
-    DEFAULT_HEIGHT_RANGE_NM,
-    DEFAULT_TAPER_LENGTH_UM,
-    DEFAULT_LAYER,
 )
 from mcp_server.schemas.waveguide import (
-    ModeSolverInput,
     InverseDesignInput,
     MaskGenInput,
+    ModeSolverInput,
 )
-from mcp_server.tools.mode_solver import WaveguideSolver
+from mcp_server.storage.cache import SimulationCache
 from mcp_server.tools.inverse_design import InverseDesigner
 from mcp_server.tools.mask_gen import MaskGenerator
-from mcp_server.storage.cache import SimulationCache
+from mcp_server.tools.mode_solver import WaveguideSolver
 
 mcp = FastMCP(
     name="photonic-waveguide-mcp-server",
@@ -90,12 +91,10 @@ def solve_waveguide_mode(
     raw_params = params.model_dump()
     cached = _cache.get("solve_waveguide_mode", raw_params)
     if cached is not None:
-        cached["cache_hit"] = True
-        return cached
+        return {**cached, "cache_hit": True}
     result = _solver.solve(params).model_dump()
-    result["cache_hit"] = False
     _cache.put("solve_waveguide_mode", raw_params, result)
-    return result
+    return {**result, "cache_hit": False}
 
 
 @mcp.tool()
@@ -143,12 +142,10 @@ def optimize_waveguide(
     raw_params = params.model_dump(exclude={"polarization", "constraints"})
     cached = _cache.get("optimize_waveguide", raw_params)
     if cached is not None:
-        cached["cache_hit"] = True
-        return cached
+        return {**cached, "cache_hit": True}
     result = _designer.optimize(params).model_dump()
-    result["cache_hit"] = False
     _cache.put("optimize_waveguide", raw_params, result)
-    return result
+    return {**result, "cache_hit": False}
 
 
 @mcp.tool()
@@ -188,12 +185,10 @@ def generate_mask(
     raw_params = params.model_dump()
     cached = _cache.get("generate_mask", raw_params)
     if cached is not None and os.path.exists(cached.get("gds_file_path", "")):
-        cached["cache_hit"] = True
-        return cached
+        return {**cached, "cache_hit": True}
     result = _mask_gen.generate(params).model_dump()
-    result["cache_hit"] = False
     _cache.put("generate_mask", raw_params, result)
-    return result
+    return {**result, "cache_hit": False}
 
 
 if __name__ == "__main__":

@@ -1,12 +1,22 @@
 """S3 Tables SQL query interface for the waveguide dataset."""
-from typing import Optional
+import logging
+import os
+import time
 
-import pyarrow.dataset as ds
-import pyarrow.compute as pc
-import pyarrow as pa
 import pandas as pd
+import pyarrow as pa
+import pyarrow.dataset as ds
 
-from mcp_server.config import S3_BUCKET_NAME, S3_REGION, DATASET_PATH
+from mcp_server.config import (
+    DATASET_PATH,
+    PARQUET_LOCAL_CACHE_DIR,
+    S3_BUCKET_NAME,
+    S3_REGION,
+)
+
+logger = logging.getLogger(__name__)
+
+S3_RETRY_COOLDOWN_S = 300.0
 
 
 class S3TablesQuery:
@@ -21,25 +31,33 @@ class S3TablesQuery:
         self.s3_uri = f"s3://{bucket}/"
         self.region = region
         self.local_fallback = local_fallback
-        self._dataset: Optional[ds.Dataset] = None
+        self._dataset: ds.Dataset | None = None
+        self._s3_available: bool | None = None
+        self._s3_retry_after = 0.0
 
     def _get_dataset(self) -> ds.Dataset:
         if self._dataset is not None:
             return self._dataset
-        try:
-            import s3fs
-            fs = s3fs.S3FileSystem(anon=False, client_kwargs={"region_name": self.region})
-            self._dataset = ds.dataset(self.s3_uri, format="parquet", filesystem=fs)
-            return self._dataset
-        except Exception:
-            pass
-        import os
-        local_parquet = "data/parquet_cache/dataset.parquet"
+        if self._s3_available is not False or time.monotonic() >= self._s3_retry_after:
+            try:
+                import s3fs
+                fs = s3fs.S3FileSystem(anon=False, client_kwargs={"region_name": self.region})
+                self._dataset = ds.dataset(self.s3_uri, format="parquet", filesystem=fs)
+                self._s3_available = True
+                return self._dataset
+            except Exception as e:
+                logger.warning(
+                    "[S3TablesQuery] S3 unavailable (%s). Using local data for the next %.0fs.",
+                    e, S3_RETRY_COOLDOWN_S,
+                )
+                self._s3_available = False
+                self._s3_retry_after = time.monotonic() + S3_RETRY_COOLDOWN_S
+        local_parquet = os.path.join(PARQUET_LOCAL_CACHE_DIR, "dataset.parquet")
         if os.path.exists(local_parquet):
             self._dataset = ds.dataset(local_parquet, format="parquet")
         elif os.path.exists(self.local_fallback):
             df = pd.read_csv(self.local_fallback)
-            table = pa.Table.from_pandas(df)
+            table = pa.Table.from_pandas(df, preserve_index=False)
             self._dataset = ds.dataset(table)
         else:
             raise FileNotFoundError("No dataset available for S3 Tables queries.")
@@ -47,8 +65,8 @@ class S3TablesQuery:
 
     def query(
         self,
-        filter_expr: Optional[ds.Expression] = None,
-        columns: Optional[list[str]] = None,
+        filter_expr: ds.Expression | None = None,
+        columns: list[str] | None = None,
         limit: int = 1000,
     ) -> pd.DataFrame:
         """Execute a filtered query with predicate pushdown.
@@ -57,14 +75,18 @@ class S3TablesQuery:
         collected, instead of materializing every matching row first.
         """
         dataset = self._get_dataset()
-        scanner = dataset.scanner(filter=filter_expr, columns=columns)
+        selected_columns = None
+        if columns is not None:
+            schema_names = set(dataset.schema.names)
+            selected_columns = [c for c in columns if c in schema_names]
+        scanner = dataset.scanner(filter=filter_expr, columns=selected_columns)
         return scanner.head(limit).to_pandas()
 
     def query_low_loss(
         self,
         max_loss_db_cm: float = 2.0,
         polarization: str = "TE",
-        columns: Optional[list[str]] = None,
+        columns: list[str] | None = None,
         limit: int = 1000,
     ) -> pd.DataFrame:
         """Convenience: find waveguides below a loss threshold."""
@@ -95,7 +117,7 @@ class S3TablesQuery:
         group_by: str,
         value_column: str,
         agg: str = "mean",
-        filter_expr: Optional[ds.Expression] = None,
+        filter_expr: ds.Expression | None = None,
     ) -> pd.DataFrame:
         """Group-by aggregation with optional pre-filtering.
 

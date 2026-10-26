@@ -1,5 +1,6 @@
 """Unit tests for the hybrid storage layer."""
 import pytest
+
 from mcp_server.storage.cache import SimulationCache
 
 
@@ -12,6 +13,11 @@ class TestSimulationCacheHashing:
     def test_hash_rounds_floats(self):
         params_a = {"width_um": 1.5000001, "height_nm": 400.0}
         params_b = {"width_um": 1.5000002, "height_nm": 400.0}
+        assert SimulationCache._hash_params(params_a) == SimulationCache._hash_params(params_b)
+
+    def test_hash_rounds_nested_floats_in_tuples_and_dicts(self):
+        params_a = {"width_range_um": (0.3000001, 5.0000001), "nested": {"lr": 0.01000001}}
+        params_b = {"width_range_um": [0.3000002, 5.0000002], "nested": {"lr": 0.01000002}}
         assert SimulationCache._hash_params(params_a) == SimulationCache._hash_params(params_b)
 
     def test_different_params_different_hash(self):
@@ -90,6 +96,7 @@ class TestS3DatasetReader:
 class TestS3TablesQuery:
     def test_local_csv_query(self, tmp_path):
         import pandas as pd
+
         from mcp_server.storage.s3_tables import S3TablesQuery
         csv_path = tmp_path / "test.csv"
         pd.DataFrame({
@@ -102,3 +109,19 @@ class TestS3TablesQuery:
         df = query.query_low_loss(max_loss_db_cm=1.0, polarization="TE")
         assert len(df) == 1
         assert df.iloc[0]["width_um"] == 1.5
+
+    def test_query_ignores_unknown_columns(self, tmp_path):
+        import pandas as pd
+
+        from mcp_server.storage.s3_tables import S3TablesQuery
+        csv_path = tmp_path / "test.csv"
+        pd.DataFrame({
+            "width_um": [1.0, 1.5],
+            "height_nm": [300, 400],
+            "propagation_loss_dB_cm": [0.4, 0.2],
+            "polarization": ["TE", "TE"],
+        }).to_csv(csv_path, index=False)
+        query = S3TablesQuery(bucket="nonexistent-bucket", local_fallback=str(csv_path))
+        df = query.query(columns=["width_um", "nonexistent_col"])
+        assert list(df.columns) == ["width_um"]
+        assert len(df) == 2
