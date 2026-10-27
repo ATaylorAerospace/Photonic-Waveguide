@@ -13,12 +13,11 @@ import hashlib
 import json
 import logging
 import time
-from typing import Optional
 
 import boto3
 from botocore.exceptions import ClientError
 
-from mcp_server.config import DYNAMODB_TABLE_NAME, DYNAMODB_REGION, CACHE_TTL_DAYS
+from mcp_server.config import CACHE_TTL_DAYS, DYNAMODB_REGION, DYNAMODB_TABLE_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -61,15 +60,23 @@ class SimulationCache:
                 return None
         return self._table
 
-    @staticmethod
-    def _hash_params(params: dict) -> str:
+    @classmethod
+    def _canonicalize(cls, value):
+        """Recursively canonicalize values, rounding floats to 6 decimal places."""
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, float):
+            return round(value, 6)
+        if isinstance(value, dict):
+            return {k: cls._canonicalize(value[k]) for k in sorted(value.keys())}
+        if isinstance(value, (list, tuple)):
+            return [cls._canonicalize(item) for item in value]
+        return value
+
+    @classmethod
+    def _hash_params(cls, params: dict) -> str:
         """Create a deterministic SHA-256 hash from a parameter dict."""
-        canonical = {}
-        for k in sorted(params.keys()):
-            v = params[k]
-            if isinstance(v, float):
-                v = round(v, 6)
-            canonical[k] = v
+        canonical = cls._canonicalize(params)
         raw = json.dumps(canonical, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(raw.encode()).hexdigest()
 
@@ -89,7 +96,7 @@ class SimulationCache:
             return f"GDS#{io}"
         return f"OTHER#{tool_name}"
 
-    def get(self, tool_name: str, params: dict) -> Optional[dict]:
+    def get(self, tool_name: str, params: dict) -> dict | None:
         """Look up a cached simulation result."""
         table = self._get_table()
         if table is None:
